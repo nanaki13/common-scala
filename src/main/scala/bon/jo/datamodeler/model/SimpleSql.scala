@@ -61,10 +61,6 @@ object SimpleSql {
   @main def testB  = 
     import bon.jo.datamodeler.model.Dsl.*
     import bon.jo.datamodeler.model.ToSql.toSqlCreate
-    val userEntity = "user".entity{
-        "name"._type(_Type.Text(55))
-        "groupe".prop(numeric(10))
-      }.value
 
 
 

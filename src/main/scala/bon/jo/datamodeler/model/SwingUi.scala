@@ -160,11 +160,12 @@ object SwingUi:
     )
     thisFrame.pack
     e
-  import Dsl.Building
+  import Dsl.OnBuild
   import Dsl.buildingValue
-  def addToMdel(e: Entity): Building[List[Entity]] =
-    buildingValue.value = buildingValue.value :+ e
-    buildingValue
+  import Dsl.*
+  def addToMdel(e: Entity): OnBuild[List[Entity]] =
+    thisBuilder.value = thisBuilder.value :+ e
+    thisBuilder
   def addEntity(name: JTextField)(using Builder[List[Entity]],JTextArea): JF[Unit] =
 
     given p: JPanel = newJpanel

@@ -2,21 +2,70 @@
 
 package bon.jo.datamodeler.model
 import _Type.*
-case class Prop(name : String,_type : _Type)
-case class Entity(name : String,props : List[Prop],pks : List[Prop] = Nil)
+import scala.language.dynamics
+case class Prop(name : String,_type : _Type ,notNull : Boolean = false)
+case class Entity(name : String,props : List[Prop],pks : List[Prop] = Nil,links : List[(List[Prop],Entity,List[Prop])]= Nil)
+import bon.jo.datamodeler.model.Dsl.*
+import ToScala.*
+import ToSql.*
 
+@main def test =
+
+  class Selector(e : Entity)extends scala.Dynamic:
+     def selectDynamic(s : String):Prop = e.props.find(_.name == s).get   
+  extension (e : Entity)
+    def p : Selector = 
+      Selector(e)
+
+  val group = "groupe".entity{
+    "id" pk numeric(10)
+    "name" _type Text(55)
+  }.value
+
+  val userEntity = "user".entity{
+    "id" pk numeric(10)
+    "name" _type Text(55)
+    "groupe" prop(numeric(10),link(group,group.p.id))
+  }.value
+  /*println(group)
+  println(group.toScalaCaseClass())
+  println(group.toSqlCreate())
+  println(userEntity)
+  println(userEntity.toSqlCreate())*/
+  println(userEntity.toSqlInsert())
+  println(userEntity.toScalaCaseClass())
+  println(group.toScalaCaseClass())
+  
+   import SimpleSql.*
+  val update = connect("jdbc:sqlite:sample.db"){
+    val updateRes= stmt{
+      thisStmt.executeUpdate(group.toSqlCreate())
+      thisStmt.executeUpdate(userEntity.toSqlCreate())
+    }
+    println(updateRes)
+    thisCon.close
+  }
+  println(update)
 object ToSql:
   extension (e : Entity)
+    def toSqlInsert() =  s"""
+                          |INSERT INTO ${e.name} (
+                          |${e.props.map(_.name).mkString(",\n")}
+                          |) VALUES (${("?," * (e.props.size - 1))+"?"})
+                          |""".stripMargin
     def toSqlCreate():String =
+      val pkString =  if e.pks.nonEmpty then s",\nPRIMARY KEY (${e.pks.map(_.name).mkString(",\n")})" else ""
+      val fkString =  if e.links.nonEmpty then {
+        e.links.map((props,ent,propss) => s",\nFOREIGN KEY(${props.map(_.name).mkString(",")}) REFERENCES ${ent.name}(${propss.map(_.name).mkString(",")})").mkString(",\n")
+      } else ""
       s"""
          |CREATE TABLE ${e.name}(
-         |${e.props.map(_.toSqlDef()).mkString(",\n")})
-         |PRIMARY KEY (${e.pks.map(_.toSqlDef()).mkString(",\n")})
+         |${e.props.map(_.toSqlDef()).mkString(",\n")}${pkString}${fkString}
          |)
          |""".stripMargin
   extension (e : Prop)
     def toSqlDef():String =
-      s"""${e.name} ${e._type.toSqlDef()}"""
+      s"""${e.name} ${e._type.toSqlDef()} ${if e.notNull then "NOT NULL" else ""}"""
   extension (e : _Type)
     def toSqlDef():String =
       e match
@@ -57,74 +106,65 @@ object ToScala:
         case  _Type.Time => "java.util.LocalTime"
         case  _Type.DateTime => "java.util.LocalDateTime"
 object Dsl:
-  class Builder[A](var value : A)
+  class Builder[A](var value : A):
+    println("Bilder !!! : "+value)
 
-  type Building[A] = Builder[A] ?=> Builder[A]
-  type SBuild[A,B] = Builder[A] ?=> Builder[B]
-  def buildingValue[A] : Building[A] = summon
-  def numeric(size : Int) : Building[Prop] =
+ 
+  def thisEntity  :  Building[Entity,Entity] = summon[Builder[Entity]].value
+  def thisProp  :  Building[Prop,Prop] = summon[Builder[Prop]].value
+  def thisBuilder[A] : OnBuild[A] = summon[Builder[A]]
+  type Building[A,B] = Builder[A] ?=> B
+  type SubBuild[A,B] =  Building[A,Builder[B]] 
+  type OnBuild[A] = Building[A,Builder[A]] 
+  type PropB = (Builder[Prop],Builder[Entity])?=> Unit
+ // type SBuild[A,B] = Builder[A] ?=> Builder[B]
+  
+  def buildingValue[A] : Building[A,A] = summon.value
+  def numeric(size : Int) : OnBuild[Prop] =
     val b = summon[Builder[Prop]]
     b.value = b.value.copy(_type = Numeric(10))
     b
-  def floatNumeric(size : Int) : Building[Prop] =
+  def link(en : Entity,prop : Prop):PropB = 
+    thisBuilder[Entity].value = thisEntity.copy(links = thisEntity.links :+ (List(thisProp),en,List(prop)))
+    println(thisBuilder[Entity].value)
+    thisBuilder[Entity]
+
+  def floatNumeric(size : Int) : OnBuild[Prop] =
     val b = summon[Builder[Prop]]
     b.value = b.value.copy(_type = FloatNumeric(10))
     b
   extension (s : String)
-    def entity(build : Building[Entity] ) : Builder[Entity]= {
+    def entity(build : OnBuild[Entity] ) : Builder[Entity]= {
       given Builder[Entity]= Builder(Entity(s,Nil))
       build
     }
 
-    def prop :Building[Entity] =
+ 
+    def _type(_type : _Type) :OnBuild[Entity]=
       val builder = summon[Builder[Entity]]
-      val v =builder.value
-      builder.value = v.copy(props = v.props :+ Prop(s,null))
-      builder
-    def _type(_type : _Type) :SBuild[Entity,Prop] =
-      val builder = summon[Builder[Entity]]
+      
+      given Builder[Prop]= Builder(Prop(s,_type))
+     // build
       val v = builder.value
-      val buidedProp = Builder(Prop(s,null))
-      builder.value = v.copy(props = v.props :+ buidedProp.value)
-      buidedProp
-    def prop(build : Building[Prop]) :Building[Entity] =
+      builder.value = v.copy(props = v.props :+ thisProp)
+      builder
+    def prop( build :PropB) :OnBuild[Entity] =
       val builder = summon[Builder[Entity]]
-      val v =builder.value
       given p:  Builder[Prop]= Builder(Prop(s,null))
-      val buidedProp = build
-      builder.value = v.copy(props = v.props :+ buidedProp.value)
-      builder
-    def pk(type_ : _Type) :Building[Entity] =
-      val builder = summon[Builder[Entity]]
-      val v =builder.value
-      val cProp =_type(type_)
-      builder.value = v.copy(pks = v.pks :+ cProp.value)
+      build
+      builder.value = builder.value.copy(props = builder.value.props :+ p.value)
+      println(thisBuilder[Entity].value)
       builder
 
+    def pk(build : OnBuild[Prop]) :OnBuild[Entity] =
+         given p:  Builder[Prop]= Builder(Prop(s,null))
+         val buidedProp = build
+         buidedProp.value = buidedProp.value.copy(notNull = true)
+         val builderE =thisBuilder[Entity]
+         builderE.value = builderE.value.copy(props = builderE.value.props :+ buidedProp.value,pks = builderE.value.pks :+ buidedProp.value)
+         builderE
 
 
 
-import bon.jo.datamodeler.model.Dsl.*
-import ToScala.*
-import ToSql.*
-@main def test =
-  val userEntity = "user".entity{
-    "id" pk _Type.Numeric(10)
-    "name" _type Text(55)
-    "groupe" prop numeric(10)
-  }.value
 
-  println(userEntity.toScalaCaseClass())
-  println(userEntity.toSqlCreate())
-  import Compile.*
-  userEntity.compile()
-  import SimpleSql.*
-  val update = connect("jdbc:sqlite:sample.db"){
-    val updateRes= stmt{
-      thisStmt.executeUpdate(userEntity.toSqlCreate())
-    }
-    println(updateRes)
-    thisCon.close
-  }
-  println(update)
 
