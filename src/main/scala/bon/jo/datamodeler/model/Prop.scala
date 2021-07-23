@@ -3,6 +3,8 @@
 package bon.jo.datamodeler.model
 import _Type.*
 import scala.language.dynamics
+import java.sql.PreparedStatement
+import java.sql.Connection
 case class Prop(name : String,_type : _Type ,notNull : Boolean = false)
 case class Entity(name : String,props : List[Prop],pks : List[Prop] = Nil,links : List[(List[Prop],Entity,List[Prop])]= Nil)
 import bon.jo.datamodeler.model.Dsl.*
@@ -27,14 +29,16 @@ import ToSql.*
     "name" _type Text(55)
     "groupe" prop(numeric(10),link(group,group.p.id))
   }.value
+
+  
   /*println(group)
   println(group.toScalaCaseClass())
   println(group.toSqlCreate())
   println(userEntity)
   println(userEntity.toSqlCreate())*/
-  println(userEntity.toSqlInsert())
-  println(userEntity.toScalaCaseClass())
-  println(group.toScalaCaseClass())
+  import PrepareSql.*
+
+  println(group.createMapper)
   
    import SimpleSql.*
   val update = connect("jdbc:sqlite:sample.db"){
@@ -46,6 +50,14 @@ import ToSql.*
     thisCon.close
   }
   println(update)
+import SimpleSql.C
+object PrepareSql:
+  extension (e : Entity)
+    def insert:C[PreparedStatement]=
+      val c : Connection= SimpleSql.thisCon
+      c.prepareStatement(e.toSqlInsert())
+    def createMapper:String = 
+      e.props.zipWithIndex.map((e,i) =>s"ps.setObject(${i+1},${e.name})").mkString(";\n")
 object ToSql:
   extension (e : Entity)
     def toSqlInsert() =  s"""

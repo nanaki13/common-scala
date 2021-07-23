@@ -17,7 +17,7 @@ object SimpleSql {
     trt
   def thisStmt: S[Statement] = summon
   def thisCon: C[Connection] = summon
-
+  def thisPreStmt: SP[PreparedStatement] = summon
   type C[A] = Connection ?=> A
   type S[A] = java.sql.Statement ?=> A
   type SP[A] = java.sql.PreparedStatement ?=> A
