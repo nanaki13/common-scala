@@ -8,6 +8,7 @@ import javax.swing.JComboBox
 import javax.swing.DefaultComboBoxModel
 import bon.jo.datamodeler.model.Dsl.Builder
 import scala.collection.mutable.ListBuffer
+import scala.jdk.CollectionConverters.*
 import javax.swing.JTextArea
 import javax.swing.JScrollPane
 import java.awt.Insets
@@ -63,8 +64,8 @@ object SwingUi:
 
     val dell = JButton("Del.")
     dell.addActionListener(a =>
-      jp.remove(txt)
-      jp.remove(dell)
+      jp.getComponents.foreach(jp.remove)
+     
       jp.invalidate
       jp.repaint()
     )
@@ -75,7 +76,8 @@ object SwingUi:
     jp.add(_type, c)
     nextCol
     jp.add(dell, c)
-    thisFrame.pack
+    contentRoot.validate
+    contentRoot.repaint()
 
     View(
       readF = () =>
@@ -146,7 +148,7 @@ object SwingUi:
     read.addActionListener(a =>
       e.value = e.value.copy(currentName.getText,props = currentPropsView.toList.map(_.read))
      
-      println(e.value)
+      
     )
     scalaB.addActionListener(a =>
       e.value = e.value.copy(currentName.getText,props = currentPropsView.toList.map(_.read))
@@ -158,7 +160,9 @@ object SwingUi:
      
       out.setText(e.value.toSqlCreate())
     )
-    thisFrame.pack
+
+    contentRoot.validate
+    contentRoot.repaint()
     e
   import Dsl.OnBuild
   import Dsl.buildingValue
@@ -179,7 +183,7 @@ object SwingUi:
 
     val b: JButton = JButton("add entity")
     val txt: JTextField = JTextField("name")
-    given JTextArea = JTextArea(10,10)
+    given JTextArea = JTextArea(30,50)
     given Builder[List[Entity]] = Builder(Nil)
     b.addActionListener(a => addEntity(txt))
    

@@ -1,10 +1,10 @@
 package bon.jo.datamodeler.model
 
-enum _Type(name : _TypeName,size : Int):
-  case Text(size : Int) extends _Type(_TypeName.Text,size)
-  case Char(size : Int) extends _Type(_TypeName.Char,size)
-  case Numeric(size : Int) extends _Type(_TypeName.Numeric,size)
-  case FloatNumeric(size : Int) extends _Type(_TypeName.FloatNumeric,size)
+enum _Type(val name : _TypeName,val size : Int):
+  case Text(sizep : Int) extends _Type(_TypeName.Text,sizep)
+  case Char(sizep : Int) extends _Type(_TypeName.Char,sizep)
+  case Numeric(sizep : Int) extends _Type(_TypeName.Numeric,sizep)
+  case FloatNumeric(sizep : Int) extends _Type(_TypeName.FloatNumeric,sizep)
   case Boolean extends _Type(_TypeName.Boolean,1)
   case Date extends _Type(_TypeName.Date,1)
   case Time extends _Type(_TypeName.Time,1)

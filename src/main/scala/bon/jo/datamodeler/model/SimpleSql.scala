@@ -40,7 +40,7 @@ object SimpleSql {
   def prepareInsert[A](using DBMapping[A]):C[PreparedStatement]=
     val mapping_ = mapping
     val str = s"INSERT INTO ${mapping_.table} (${mapping_.listComa}) VALUES (${mapping_.prepareQuestionMark})"
-    println(str)
+   
     str.prepare()
   
   def insert[A](a : A)(using DBMapping[A]): SP[Unit] = 
