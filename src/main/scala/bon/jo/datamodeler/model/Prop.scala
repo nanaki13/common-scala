@@ -74,7 +74,8 @@ object ToSql:
                           |""".stripMargin
     def toSqlSelect(): String =  s"""SELECT ${e.props.map(_.name).mkString(",\n")}
                             |FROM ${e.name}""".stripMargin
-    def where(prop: Prop) : String = s""" ${toSqlSelect()} WHERE ${prop.=?}"""
+    def where(prop: Prop *) : String = s""" ${toSqlSelect()} WHERE ${prop.map(_.=?).mkString(", ")}"""
+
     def toSqlCreate():String =
       val pkString =  if e.pks.nonEmpty then s",\nPRIMARY KEY (${e.pks.map(_.name).mkString(",\n")})" else ""
       val fkString =  if e.links.nonEmpty then {
@@ -89,6 +90,9 @@ object ToSql:
   extension (e : Prop)
     def toSqlDef():String =
       s"""${e.name} ${e._type.toSqlDef()} ${if e.notNull then "NOT NULL" else ""}"""
+
+
+
   extension (e : _Type)
     def toSqlDef():String =
       e match
@@ -100,6 +104,10 @@ object ToSql:
         case  _Type.Date => "DATE"
         case  _Type.Time => "TIME"
         case  _Type.DateTime => "DATETIME"
+
+object Prop:
+  extension (e : Prop)
+    def toJavaClass() : String = e._type.toScalaDef()
 object Compile:
   import ToScala.*
   extension (e : Entity)
