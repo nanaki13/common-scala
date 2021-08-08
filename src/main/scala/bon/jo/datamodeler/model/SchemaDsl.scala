@@ -37,7 +37,11 @@ object SchemaDsl:
     
 
     def setPs : String = e.props.zipWithIndex.map((pr,i) => s"ps.setObject(${i+1},e.${pr.name})").mkString("\n    ")
-    def readRs : String = e.props.zipWithIndex.map((pr,i) => s"rs.getObject(${i+1},classOf[${pr.toJavaClass()}])").mkString(",\n    ")
+    def readRs : String = e.props.zipWithIndex.map {
+
+       (pr : Prop, i) => s"rs.getObject(${i + 1},classOf[${pr.toJavaClass()}])"
+
+    }.mkString(",\n    ")
 
 
     s"""trait ${e.caseClassName}Dao extends SqlDao[${e.caseClassName}]:
@@ -86,26 +90,28 @@ object Main:
 
         val insertE = daoE.prepareInsert
         val insertP = daop.prepareInsert
-        val selectidE = daoE.prepareSelectId
-        entites().map(raw).map{
+    
+        val raws : List[(EntityRaw,List[PropRaw])] = entites().map(raw).map{
           (e,prs) =>
             given PreparedStatement = insertE
             e.save
             (e,prs)
-          }.foreach{ (e,prs) =>
+          }.map{ (e,prs) =>
             given PreparedStatement = insertP
             prs.foreach(_.save)
+            (e,prs)
           }
-        given PreparedStatement = selectidE
-        entites().foreach(e =>
+        given PreparedStatement = daoE.prepareSelectId
+        println(SimpleSql.thisPreStmt)
+        raws.foreach { case (e, prs) =>
           given EntityRawDao = daoE
 
-          println(raw(e)._1.read)
-        )
+          println(e.read)
+        }
       }
 
     end testCreateInsert
-   // testCreateInsert()
+    testCreateInsert()
 
   end testDll
 
@@ -119,33 +125,33 @@ case class EntityRaw(id: Long, name: String, namespace: String)
 
 case class PropRaw(id: Long, name: String, type_size: Long, _type: String, entity_fk: Long)
 
+def cv[B](a: Any) = a.asInstanceOf[B]
 object SqlDao:
   def apply[T]()(using SqlDao[T]) = summon
+
 trait SqlDao[E]:
-  def prepareInsert(using c : Connection) : PreparedStatement
-  def prepareSelectId(using c : Connection) : PreparedStatement
+  def prepareInsert(using Connection) : PreparedStatement
+  def prepareSelectId(using Connection) : PreparedStatement
   def read(rs : ResultSet): E
+
 trait EntityRawDao extends SqlDao[EntityRaw]:
-  def prepareInsert(using c : Connection) : PreparedStatement =
-    c.prepareStatement("""
+   def prepareInsert(using c : Connection) : PreparedStatement = 
+     c.prepareStatement("""
 INSERT INTO entityRaw (
 id,
 name,
 namespace
 ) VALUES (?,?,?)
 """)
-  def prepareSelectId(using c : Connection) : PreparedStatement =
-    c.prepareStatement("""SELECT id,
-name,
-namespace
-FROM entityRaw  SELECT id,
+   def prepareSelectId(using c : Connection) : PreparedStatement =
+     c.prepareStatement(""" SELECT id,
 name,
 namespace
 FROM entityRaw WHERE id = ?""")
-  def read(rs : ResultSet): EntityRaw =
-    EntityRaw(rs.getObject(1,classOf[Long]),
-      rs.getObject(2,classOf[String]),
-      rs.getObject(3,classOf[String]))
+   def read(rs : ResultSet): EntityRaw =
+     EntityRaw(cv(rs.getLong(1)),
+    cv(rs.getObject(2)),
+    cv(rs.getObject(3)))
 extension (e : EntityRaw)
   def save(using PreparedStatement):Int =
     val ps = summon
@@ -153,15 +159,16 @@ extension (e : EntityRaw)
     ps.setObject(2,e.name)
     ps.setObject(3,e.namespace)
     ps.executeUpdate()
-  def read(using PreparedStatement,SqlDao[EntityRaw]): EntityRaw =
+  def read(using PreparedStatement,SqlDao[EntityRaw]): Option[EntityRaw] =
     val ps = SimpleSql.thisPreStmt
     ps.setObject(1,e.id)
-    SqlDao().read(ps.executeQuery())
+    val rs = ps.executeQuery()
+    if rs.next() then Some(SqlDao().read(rs)) else None
 
 
 trait PropRawDao extends SqlDao[PropRaw]:
-  def prepareInsert(using c : Connection) : PreparedStatement =
-    c.prepareStatement("""
+   def prepareInsert(using c : Connection) : PreparedStatement = 
+     c.prepareStatement("""
 INSERT INTO propRaw (
 id,
 name,
@@ -170,24 +177,19 @@ _type,
 entity_fk
 ) VALUES (?,?,?,?,?)
 """)
-  def prepareSelectId(using c : Connection) : PreparedStatement =
-    c.prepareStatement("""SELECT id,
-name,
-type_size,
-_type,
-entity_fk
-FROM propRaw  SELECT id,
+   def prepareSelectId(using c : Connection) : PreparedStatement =
+     c.prepareStatement(""" SELECT id,
 name,
 type_size,
 _type,
 entity_fk
 FROM propRaw WHERE id = ?""")
-  def read(rs : ResultSet): PropRaw =
-    PropRaw(rs.getObject(1,classOf[Long]),
-      rs.getObject(2,classOf[String]),
-      rs.getObject(3,classOf[Long]),
-      rs.getObject(4,classOf[String]),
-      rs.getObject(5,classOf[Long]))
+   def read(rs : ResultSet): PropRaw =
+     PropRaw(rs.getObject(1).asInstanceOf[Long],
+    rs.getObject(2).asInstanceOf[String],
+    rs.getObject(3).asInstanceOf[Long],
+    rs.getObject(4).asInstanceOf[String],
+    rs.getObject(5).asInstanceOf[Long])
 extension (e : PropRaw)
   def save(using PreparedStatement):Int =
     val ps = summon
@@ -198,9 +200,9 @@ extension (e : PropRaw)
     ps.setObject(5,e.entity_fk)
     ps.executeUpdate()
   def read(using PreparedStatement,SqlDao[PropRaw]): PropRaw =
-    val ps : PreparedStatement = SimpleSql.thisPreStmt
-    ps.setObject(1,e.id)
+    val ps = SimpleSql.thisPreStmt
     SqlDao().read(ps.executeQuery())
+
 
 
 

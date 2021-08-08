@@ -55,7 +55,7 @@ object SimpleSql {
     val reader: (A, Int) => Any = (a,i)=> a.productElement(i)
     val table: String = table_
 
-  case class User(name : String, groupe : Int)
+  case class User(name : String, groupe : Int,email : String = "")
 
   
   @main def testB  = 
