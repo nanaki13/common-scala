@@ -3,6 +3,7 @@ package bon.jo.datamodeler.model
 import java.sql.{Connection, DriverManager, Statement}
 import scala.reflect.ClassTag
 import java.sql.PreparedStatement
+import bon.jo.datamodeler.model.macros.TestMacro
 
 object SimpleSql {
 
@@ -14,6 +15,9 @@ object SimpleSql {
     res
   def stmt[A](trt : S[A]): C[A]=
     given Statement = summon[Connection].createStatement()
+    trt
+   def prepStmt[A](s : String)(trt : SP[A]): C[A]=
+    given PreparedStatement = summon[Connection].prepareStatement(s)
     trt
   def thisStmt: S[Statement] = summon
   def thisCon: C[Connection] = summon
@@ -55,7 +59,19 @@ object SimpleSql {
     val reader: (A, Int) => Any = (a,i)=> a.productElement(i)
     val table: String = table_
 
-  case class User(name : String, groupe : Int,email : String = "")
+  case class User(id:Int,name : String, groupe : Int,email : String = "")
+  inline def createTable[T]:Boolean = 
+    val tableName = TestMacro.tableName[T]
+    val typesDef : List[Any] = TestMacro.sqlTypesDef[T]
+    val statlment = s"""
+|CREATE TABLE $tableName(
+|   ${typesDef.mkString(", ")}
+|
+|)
+|
+    """.stripMargin
+    println(statlment)
+    true
 
   
   @main def testB  = 
@@ -73,10 +89,10 @@ object SimpleSql {
 
 
        // }
-        given User = User("",0)
+        given User = User(1,"",0)
         given  ProductReader[User] =  ProductReader[User]("user")
         given PreparedStatement = prepareInsert[User]
-        insert(User("test",1))
+        insert(User(1,"test",1))
         executeBatch()
       //  println(updateRes)
         thisCon.close
