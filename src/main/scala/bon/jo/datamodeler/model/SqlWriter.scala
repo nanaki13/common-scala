@@ -2,10 +2,12 @@ package bon.jo.datamodeler.model
 
 import bon.jo.datamodeler.model.SimpleSql.User
 import bon.jo.datamodeler.model.SqlWriter.{/, UsingSb, insert, value, writer}
-import bon.jo.datamodeler.model.macros.TestMacro
+import bon.jo.datamodeler.model.macros.SqlMacro
+import bon.jo.datamodeler.model.macros.GenMacro
 import bon.jo.datamodeler.util.ConnectionPool
 import java.sql.Connection
-import bon.jo.datamodeler.model.macros.PrintTree
+
+
 
 
 object SqlWriter:
@@ -31,37 +33,37 @@ object SqlWriter:
 
   inline def from[T]: UsingSb[Unit] =
     /(" FROM ")
-    /(TestMacro.tableName[T].name)
+    /(SqlMacro.tableName[T].name)
   inline def where[T](inline f: T => Any): UsingSb[Unit] =
     /(" WHERE ")
-    /(TestMacro.fieldSelection[T](f)._2)
+    /(GenMacro.fieldSelection[T](f)._2)
 
   case class FromCase(value: Any)
   case class Where(value: Any)
 
   inline def createTable[T]: UsingSb[Unit] =
     /("SELECT ")
-    /(TestMacro.columnsName[T])
+    /(SqlMacro.columnsName[T])
   inline def select[T]: UsingSb[Unit] =
     /("SELECT ")
-    /(TestMacro.columnsName[T])
+    /(SqlMacro.columnsName[T])
 
   inline def value[T]: UsingSb[Unit] =
     /(" VALUES (")
-    /("?," * (TestMacro.countFields[T] - 1))
+    /("?," * (GenMacro.countFields[T] - 1))
     /('?' )
     /(')')
   inline def insert[T]: UsingSb[Unit] =
     /("INSERT INTO ")
-    /(TestMacro.tableName[T].name)
+    /(SqlMacro.tableName[T].name)
     /('(')
-    /(TestMacro.columnsName[T])
+    /(SqlMacro.columnsName[T])
     /(')')
 
   inline def select[T,C]: UsingSb[Unit] =
     /("SELECT ")
-    /(TestMacro.columnsName[T])
-    /(TestMacro.columnsName[C])
+    /(SqlMacro.columnsName[T])
+    /(SqlMacro.columnsName[C])
 
 
 
@@ -78,7 +80,7 @@ trait Sql[A]:
     this
   inline def select[B] : UsingSb[Sql[A]] =
     /(',')
-    /(TestMacro.columnsName[B])
+    /(SqlMacro.columnsName[B])
     this
   inline def from : UsingSb[Sql[A]] =
     SqlWriter.from[A]
@@ -89,16 +91,16 @@ trait Sql[A]:
 
   inline def or(inline f: A => Any) : UsingSb[Sql[A]] =
     /(" OR ")
-    /(TestMacro.fieldSelection[A](f)._2)
+    /(GenMacro.fieldSelection[A](f)._2)
     this
 
   inline def join[B](inline f: A => Any,inline g: B => Any): UsingSb[Sql[A]] =
     /(" JOIN ")
-    /(TestMacro.tableName[B].name)
+    /(SqlMacro.tableName[B].name)
     /(" ON ")
-    /(TestMacro.fieldSelection[A](f)._2)
+    /(GenMacro.fieldSelection[A](f)._2)
     /(" = ")
-    /(TestMacro.fieldSelection[B](g)._2)
+    /(GenMacro.fieldSelection[B](g)._2)
     this
 
 
@@ -125,43 +127,46 @@ object T extends App:
       where(z => z.groupe) === 1
       or(_.groupe)  === 2
 
+    def t2 =
+      given Pool[java.sql.Connection] = ConnectionPool(10)("jdbc:sqlite:sample.db","org.sqlite.JDBC")
 
-    given Pool[java.sql.Connection] = ConnectionPool(10)("jdbc:sqlite:sample.db","org.sqlite.JDBC")
+    //  SimpleSql.
 
-  //  SimpleSql.
+      insert[User]
+      value[User]
+      import ConnectionPool.*
+      println(writer)
 
-    insert[User]
-    value[User]
-    import ConnectionPool.*
-    println(writer)
-
-    given  Connection =  pool.get
-  
-    println( SimpleSql.createTable[User])
-    val t = SimpleSql.stmt{ 
-   
-       println( SimpleSql.thisStmt.executeUpdate("drop table if exists USER"))
-       println( SimpleSql.thisStmt.executeUpdate("Create table USER(id INT primary key,name  varchar(50),email   varchar(50), groupe  int )"))
-       SimpleSql.thisStmt.close
+      given  Connection =  pool.get
+    
       
-    }
-    println(t)
-    SimpleSql.prepStmt(writer.toString){
-      val t = System.currentTimeMillis
-      val f = TestMacro.fillInsert[User]
-  
-      for(t <- 1 to 1)
-        f(User(t,"test",1,"sdfsdf"),SimpleSql.thisPreStmt)
-        SimpleSql.thisPreStmt.addBatch
-      SimpleSql.thisPreStmt.executeBatch
-      SimpleSql.thisPreStmt.close
-      println( System.currentTimeMillis - t)
-    }
+      val t = SimpleSql.stmt{ 
+        
+        println( SimpleSql.dropTable[User])
+        println( SimpleSql.createTable[User])
+        SimpleSql.thisStmt.close
+        
+      }
+      println(t)
+      SimpleSql.prepStmt(writer.toString){
+        val t = System.currentTimeMillis
+        val f = SqlMacro.fillInsert[User]
+        //val readAllUser = SimpleSql.readAll[User]
     
-   
-    pool.release(SimpleSql.thisCon)
-   // fill(User("test",1,"sdfsdf"))
+        for(t <- 1 to 1)
+          f(User(t,"test",1,"sdfsdf"),SimpleSql.thisPreStmt)
+          SimpleSql.thisPreStmt.addBatch
+        SimpleSql.thisPreStmt.executeBatch
+        SimpleSql.thisPreStmt.close
+        println( System.currentTimeMillis - t)
+      }
+      
     
+      pool.release(SimpleSql.thisCon)
+    // fill(User("test",1,"sdfsdf"))
+    end t2
+  println(GenMacro.printTree(User(0,"abc",1,"email")))
+  println(GenMacro.testConstructor[User])
   
 
 

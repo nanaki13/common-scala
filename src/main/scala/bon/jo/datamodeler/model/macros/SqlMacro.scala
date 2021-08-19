@@ -4,17 +4,17 @@ import scala.annotation.tailrec
 import scala.quoted.{Expr, Quotes, ToExpr, Type, quotes}
 import java.sql.PreparedStatement
 import java.time.LocalDate
+import bon.jo.datamodeler.util.Utils.{/,writer,UsingSb}
+object SqlMacro:
 
-object TestMacro:
+  case class Table(name: String)
 
-  def inspectCode(x: Expr[Any])(using Quotes): Expr[Any] =
-    Expr(x.show)
-
-  inline def countFields[T]: Int = ${ countFields[T]() }
+  
   inline def columnsName[T]: String = ${ columnsNameCode[T]() }
   inline def tableName[T]: Table = ${ tableNameCode[T]() }
   inline def where[T](inline f: T => Any): String = ${ whereCode[T]('f) }
-  case class Table(name: String)
+
+
 
   given ToExpr[Table] with {
     def apply(x: Table)(using Quotes): Expr[Table] = '{ Table(${ Expr(x.name) }) }
@@ -23,13 +23,11 @@ object TestMacro:
   given ToExpr[Unit] with {
     def apply(x: Unit)(using Quotes): Expr[Unit] = '{  }
   }
-  def countFields[T: Type]()(using Quotes): Expr[Int] =
-    import quotes.reflect.*
-    val tpe: TypeRepr = TypeRepr.of[T]
-    Expr(tpe.typeSymbol.declaredFields.size)
+
   def tableNameCode[T: Type]()(using Quotes): Expr[Table] =
     import quotes.reflect.*
     Expr(Table(TypeRepr.of[T].typeSymbol.name.toUpperCase))
+
   def whereCode[T: Type](f: Expr[T => Any])(using Quotes): Expr[String] =
     import quotes.reflect.*
 
@@ -53,24 +51,27 @@ object TestMacro:
     )*/
     Expr(l.map(_.name).mkString(","))
 
-  inline def fieldSelection[T](inline t : T => Any):(String,String) =
-    ${fieldSelectionCode[T => Any]('t)}
+
 
   inline def sqlTypesDef[T]:List[String] = 
     ${sqlTypesDefCode[T]}
 
-  private type UsingSb[A] = StringBuilder ?=> A
 
-  private inline def writer: UsingSb[StringBuilder] = summon
-
-  private inline def /(s : Any): UsingSb[Unit] =  writer.append(s)
 
   def sqlTypesDefCode[T : Type](using  Quotes):Expr[List[String]] =
     import quotes.reflect.*
+    import bon.jo.datamodeler.model.SimpleSql.id
     val tpe: TypeRepr = TypeRepr.of[T]
-    val fields = tpe.typeSymbol.caseFields
+    val sbe: Symbol = TypeRepr.of[id].typeSymbol
+    val symbol = tpe.typeSymbol
+    val fields = symbol.caseFields
+
+
+    val idFieldsSymbols = symbol.primaryConstructor.paramSymss.flatMap(_.filter(_.getAnnotation(sbe).nonEmpty))
     val f = fields.map(f => 
         given StringBuilder = StringBuilder()
+        val isId = idFieldsSymbols.map(_.name == f.name).reduce(_ || _) || f.name == "id"
+
         /( s"${f.name}")
         tpe.memberType(f).asType match 
           case '[Int] =>  /(" INT")
@@ -79,10 +80,11 @@ object TestMacro:
           case '[Float] =>  /(" FLOAT")
           case '[Double] =>  /(" DOUBLE")
           case '[LocalDate] =>  /(" DATE")
+        if f.name == "id" then /(" PRIMARY KEY") 
         writer.toString
       )
     Expr(f)
-  def fieldSelectionCode[T : Type]( t : Expr[T])(using  Quotes):Expr[(String,String)] = Help().fieldSelectionCode(t)
+  
 
   inline def testCreateFunction[T]:T => String =
       ${createFunction[T]}
@@ -114,54 +116,6 @@ object TestMacro:
        }
    
   
-  class Help[Q <: Quotes, T : Type]()(using val qq : Q) :
- 
-    import  qq.reflect.*
-    val tpe = TypeRepr.of[T]
-    val symbol = tpe.typeSymbol
-
-    def name = symbol.name
-
-
-    def fieldSelectionCode[T : Type]( t : Expr[T]):Expr[(String,String)] =
-     
-      val tree : Tree = t.asTerm
-     
-
-      val bl = findFirstBlock(tree)
-      bl match
-        case  Block(statments,term) =>
-          statments.last match {
-            case DefDef(_,_,_,Some(Select(Ident(a),name))) => Expr((a,name))
-            case _ => println("Local");println(statments.last);invlaidLambda()
-          }
-        case _ =>
-          println("Global");println(tree);invlaidLambda()
-
-    end fieldSelectionCode
-
-    @tailrec 
-    final def findFirstBlock(lTree : Tree) : Block=
-      lTree match
-        case Inlined(_,_,b@ Block(_,_)) =>  b
-        case Inlined(_,_,b@ Inlined(_,_,_)) => findFirstBlock(b)
-        case _ => invlaidLambda(s"findFirstBlock match error : $lTree")
-    end findFirstBlock
-    
-
-          
-
-inline def invlaidLambda(s : String = "only statments ending with select accepted") = throw IllegalStateException(s)
-
-object PrintTree {
-  inline def printTree[T](inline x: T): Unit = ${printTreeImpl('x)}
-  def printTreeImpl[T: Type](x: Expr[T])(using qctx: Quotes): Expr[Unit] =
-    import qctx.reflect.*
-    println(x.asTerm.show(using Printer.TreeStructure))
-    println(x.asTerm)
-    println(x.show)
-    '{()}
-}
 
 
 

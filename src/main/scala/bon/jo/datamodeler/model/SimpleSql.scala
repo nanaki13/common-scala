@@ -3,8 +3,9 @@ package bon.jo.datamodeler.model
 import java.sql.{Connection, DriverManager, Statement}
 import scala.reflect.ClassTag
 import java.sql.PreparedStatement
-import bon.jo.datamodeler.model.macros.TestMacro
-
+import bon.jo.datamodeler.model.macros.SqlMacro
+import scala.annotation.tailrec
+import scala.annotation.StaticAnnotation
 object SimpleSql {
 
   Class.forName("org.sqlite.JDBC")
@@ -58,20 +59,26 @@ object SimpleSql {
     val columns: List[String] = rep.productElementNames.toList
     val reader: (A, Int) => Any = (a,i)=> a.productElement(i)
     val table: String = table_
-
-  case class User(id:Int,name : String, groupe : Int,email : String = "")
-  inline def createTable[T]:Boolean = 
-    val tableName = TestMacro.tableName[T]
-    val typesDef : List[Any] = TestMacro.sqlTypesDef[T]
+  final class id extends StaticAnnotation
+  case class User(@id id : Int,name : String, groupe : Int,email : String = "")
+  inline def dropTable[T]:S[Unit] = 
+    val tableName = SqlMacro.tableName[T]
+    val statlment = s"drop table if exists ${tableName.name}"
+    println(statlment)
+    println(thisStmt.executeUpdate(statlment))
+  
+  inline def createTable[T]:S[Unit] = 
+    val tableName = SqlMacro.tableName[T]
+    val typesDef : List[Any] = SqlMacro.sqlTypesDef[T]
     val statlment = s"""
-|CREATE TABLE $tableName(
+|CREATE TABLE ${tableName.name} (
 |   ${typesDef.mkString(", ")}
 |
 |)
 |
     """.stripMargin
     println(statlment)
-    true
+    println(thisStmt.executeUpdate(statlment))
 
   
   @main def testB  = 
