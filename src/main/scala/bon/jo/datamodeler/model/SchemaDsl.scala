@@ -8,6 +8,8 @@ import bon.jo.datamodeler.model.ToSql.*
 import bon.jo.datamodeler.model.ToScala.*
 import bon.jo.datamodeler.model.SchemaDsl.*
 import bon.jo.datamodeler.model.Prop.*
+import bon.jo.datamodeler.model.sql.SimpleSql
+
 object SchemaDsl:
   inline def entites() : List[Entity] =
     val ent = "entityRaw".entity{

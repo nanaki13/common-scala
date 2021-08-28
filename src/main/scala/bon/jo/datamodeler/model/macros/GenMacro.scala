@@ -38,11 +38,8 @@ object GenMacro :
     ${fieldSelectionCode[T => Any]('t)}
   def fieldSelectionCode[T : Type]( t : Expr[T])(using  Quotes):Expr[(String,String)] = Help().fieldSelectionCode(t)
   
-  inline def readResultSet[T]:ResultSet => T =
-    ${readResultCode[T]}
 
-  def readResultCode[T: Type](using  Quotes): Expr[ResultSet => T] =
-      '{( r : ResultSet) => ${Help().readResultBody('{r})}}
+
 
 class Help[Q <: Quotes, T : Type]()(using val qq : Q) :
  
@@ -76,11 +73,7 @@ class Help[Q <: Quotes, T : Type]()(using val qq : Q) :
 
   
 
-  def readResultBody[T](r : Expr[ResultSet]):Expr[T]=
-    val countF = GenMacro.countFields[T]
-    '{
-      ${r}.getObject()
-    }
+
   
 
   @tailrec 

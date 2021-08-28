@@ -1,4 +1,4 @@
-package bon.jo.datamodeler.model
+package bon.jo.datamodeler.model.sql
 
 import java.sql.{Connection, DriverManager, Statement}
 import scala.reflect.ClassTag
@@ -8,7 +8,7 @@ import scala.annotation.tailrec
 import scala.annotation.StaticAnnotation
 object SimpleSql {
 
-  Class.forName("org.sqlite.JDBC")
+  //Class.forName("org.sqlite.JDBC")
   def connect[A](string: String = "jdbc:sqlite:sample.db")(trt :C[A]) : A =
     given Connection = DriverManager.getConnection(string)
     val res = trt

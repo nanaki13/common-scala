@@ -19,9 +19,11 @@ class Selector(e : Entity)extends scala.Dynamic:
 extension (e : Entity)
   def _prop : Selector = 
     Selector(e)
-
+    
+import sql.SimpleSql
+import sql.SimpleSql.*
 @main def test =
-
+  
 
   val group = "groupe".entity{
     "id" pk numeric(10)
@@ -44,7 +46,7 @@ extension (e : Entity)
 
   println(group.createMapper)
   
-  import SimpleSql.*
+  
   val update = connect("jdbc:sqlite:sample.db"){
     val updateRes= stmt{
       thisStmt.executeUpdate(group.toSqlCreate())
@@ -54,11 +56,11 @@ extension (e : Entity)
     thisCon.close
   }
   println(update)
-import SimpleSql.C
+import sql.SimpleSql.C
 object PrepareSql:
   extension (e : Entity)
     def insert:C[PreparedStatement]=
-      val c : Connection= SimpleSql.thisCon
+      val c : Connection = SimpleSql.thisCon
       c.prepareStatement(e.toSqlInsert())
     def createMapper:String = 
       e.props.zipWithIndex.map((e,i) =>s"ps.setObject(${i+1},${e.name})").mkString(";\n")

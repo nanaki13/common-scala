@@ -1,7 +1,7 @@
 package bon.jo.datamodeler.util
 
-import bon.jo.datamodeler.model.Pool
-import bon.jo.datamodeler.model.Pool.PoolImpl
+import bon.jo.datamodeler.util.Pool
+import bon.jo.datamodeler.util.Pool.PoolImpl
 
 
 import java.sql.{Connection, DriverManager, PreparedStatement}
@@ -16,4 +16,7 @@ object ConnectionPool:
 
   type P[A] = Pool[Connection] ?=> A
   inline def pool:P[Pool[Connection]] = summon
+
+  extension (p :  Pool[Connection])
+    def closeAll():Unit = p.toAll(_.close)
 
