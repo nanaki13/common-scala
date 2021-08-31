@@ -3,6 +3,7 @@ package bon.jo.datamodeler.util
 import scala.collection.mutable.StringBuilder
 
 object Utils:
+  type -[A] = A ?=> A 
   type UsingSb[A] = StringBuilder ?=> A
 
   inline def writer: UsingSb[StringBuilder] = summon

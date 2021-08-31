@@ -44,7 +44,7 @@ import sql.SimpleSql.*
   println(userEntity.toSqlCreate())*/
   import PrepareSql.*
 
-  println(group.createMapper)
+ 
   
   
   val update = connect("jdbc:sqlite:sample.db"){
@@ -52,10 +52,10 @@ import sql.SimpleSql.*
       thisStmt.executeUpdate(group.toSqlCreate())
       thisStmt.executeUpdate(userEntity.toSqlCreate())
     }
-    println(updateRes)
+
     thisCon.close
   }
-  println(update)
+
 import sql.SimpleSql.C
 object PrepareSql:
   extension (e : Entity)

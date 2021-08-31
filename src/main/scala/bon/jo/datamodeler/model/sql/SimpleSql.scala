@@ -6,6 +6,7 @@ import java.sql.PreparedStatement
 import bon.jo.datamodeler.model.macros.SqlMacro
 import scala.annotation.tailrec
 import scala.annotation.StaticAnnotation
+import bon.jo.datamodeler.model.Model.User
 object SimpleSql {
 
   //Class.forName("org.sqlite.JDBC")
@@ -18,6 +19,7 @@ object SimpleSql {
     given Statement = summon[Connection].createStatement()
     trt
    def prepStmt[A](s : String)(trt : SP[A]): C[A]=
+
     given PreparedStatement = summon[Connection].prepareStatement(s)
     trt
   def thisStmt: S[Statement] = summon
@@ -60,12 +62,12 @@ object SimpleSql {
     val reader: (A, Int) => Any = (a,i)=> a.productElement(i)
     val table: String = table_
   final class id extends StaticAnnotation
-  case class User(@id id : Int,name : String, groupe : Int,email : String = "")
+
   inline def dropTable[T]:S[Unit] = 
     val tableName = SqlMacro.tableName[T]
     val statlment = s"drop table if exists ${tableName.name}"
-    println(statlment)
-    println(thisStmt.executeUpdate(statlment))
+   
+    thisStmt.executeUpdate(statlment)
   
   inline def createTable[T]:S[Unit] = 
     val tableName = SqlMacro.tableName[T]
@@ -77,8 +79,8 @@ object SimpleSql {
 |)
 |
     """.stripMargin
-    println(statlment)
-    println(thisStmt.executeUpdate(statlment))
+    statlment
+    thisStmt.executeUpdate(statlment)
 
   
   @main def testB  = 

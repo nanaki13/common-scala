@@ -18,5 +18,13 @@ object ConnectionPool:
   inline def pool:P[Pool[Connection]] = summon
 
   extension (p :  Pool[Connection])
-    def closeAll():Unit = p.toAll(_.close)
+    def closeAll():Unit = 
+     
+        p.toAll(con => 
+          try
+            con.close
+          catch 
+            case e : java.sql.SQLException => println(e)
+          )
+     
 
