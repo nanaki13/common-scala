@@ -12,6 +12,9 @@ object Sql:
 
 
 trait Sql[A]:
+  inline def update : UsingSb[Sql[A]] =
+    SqlWriter.update[A]
+    this
   inline def delete : UsingSb[Sql[A]] =
     SqlWriter.delete[A]
     this

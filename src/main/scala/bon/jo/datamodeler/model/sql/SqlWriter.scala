@@ -62,6 +62,12 @@ object SqlWriter:
     /('(')
     /(SqlMacro.columnsName[T])
     /(')')
+
+  inline def update[T]: UsingSb[Unit] =
+    /("UPDATE ")
+    /(SqlMacro.tableName[T].name)
+    /(" SET ")
+    /(SqlMacro.columnsNameList[T].map(c => s"$c = ?").mkString(", "))
   inline def delete[T]: UsingSb[Unit] =
     /("DELETE FROM ")
     /(SqlMacro.tableName[T].name)

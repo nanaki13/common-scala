@@ -15,6 +15,7 @@ object SqlMacro:
 
   
   inline def columnsName[T]: String = ${ columnsNameCode[T]() }
+  inline def columnsNameList[T]: List[String] = ${ columnsNameListCode[T]() }
   inline def tableName[T]: Table = ${ tableNameCode[T]() }
   inline def where[T](inline f: T => Any): String = ${ whereCode[T]('f) }
 
@@ -40,27 +41,22 @@ object SqlMacro:
     Expr(ret)
   def columnsNameCode[T: Type]()(using Quotes): Expr[String] =
     import quotes.reflect.*
-
     val tpe: TypeRepr = TypeRepr.of[T]
-    //  println(tpe.typeSymbol.declaredFields  )
-    // println(tpe.typeSymbol.declaredMethods  )
-
     val l: List[Symbol] = tpe.typeSymbol.declaredFields
-    /* l.foreach(s =>
-      tpe.memberType(s).asType match
-        case '[Int]    => println(s.name + " it's an int ")
-        case '[Tuple]  => println(s.name + " it's an tuple ")
-        case '[String] => println(s.name + " it's a string ")
-        case a @ _     => println(s.name + " it's not an int : " + tpe.memberType(s).show)
-    )*/
     Expr(l.map(_.name).mkString(","))
 
 
+  def columnsNameListCode[T: Type]()(using Quotes): Expr[List[String]] =
+    import quotes.reflect.*
+    val tpe: TypeRepr = TypeRepr.of[T]
+    val l: List[Symbol] = tpe.typeSymbol.declaredFields
+    Expr(l.map(_.name))
 
   inline def sqlTypesDef[T]:List[String] = 
     ${sqlTypesDefCode[T]}
-
-
+  inline def uniqueIdValue[T,ID](inline t : T):ID = uniqueIdValueAny[T](t).asInstanceOf[ID]
+  inline def uniqueIdValueAny[T](inline t : T):Any = ${uniqueIdValueCode[T]('t)}
+  def uniqueIdValueCode[T: Type](t : Expr[T])(using  Quotes) :Expr[Any] = SqlMacroHelper().uniqueIdValueCode(t)
   def uniqueIdStringCode[T: Type](using  Quotes):Expr[String] = 
     SqlMacroHelper().uniqueIdString
 

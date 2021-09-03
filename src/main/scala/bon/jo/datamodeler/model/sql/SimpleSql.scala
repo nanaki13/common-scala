@@ -79,7 +79,7 @@ object SimpleSql {
 |)
 |
     """.stripMargin
-    statlment
+
     thisStmt.executeUpdate(statlment)
 
   
