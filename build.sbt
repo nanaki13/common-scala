@@ -2,7 +2,8 @@ name := "data-modeler"
 version := "0.1"
 scalaVersion := "3.0.0"
 
-
+libraryDependencies += "org.scalactic" %% "scalactic" % "3.2.9"
+libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.9" % "test"
 libraryDependencies += "org.xerial" % "sqlite-jdbc" % "3.36.0.1"
 
 scalacOptions ++= Seq(
