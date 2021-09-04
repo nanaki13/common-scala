@@ -22,8 +22,8 @@ class Test extends AnyFlatSpec with should.Matchers:
     given Pool[java.sql.Connection] = ConnectionPool(10)("jdbc:sqlite:sample.db","org.sqlite.JDBC")
     given Sql[Event] = Sql()
     given Sql[User] = Sql()
-    val daoUser = DaoSync.IntDaoSync.apply[User]((id,e ) => e.copy(id = id) )
-    val eventDao = DaoSync.IntDaoSync.apply[Event]((id,e ) => e.copy(id = id) )
+    given daoUser : DaoSync.IntDaoSync[User] = DaoSync.IntDaoSync.apply[User]((id,e ) => e.copy(id = id) )
+    given eventDao : DaoSync.IntDaoSync[Event] = DaoSync.IntDaoSync.apply[Event]((id,e ) => e.copy(id = id) )
     //  SimpleSql.
 
     import bon.jo.datamodeler.util.ConnectionPool.*
@@ -68,7 +68,7 @@ class Test extends AnyFlatSpec with should.Matchers:
       println("id clause : "+daoUser.delete(u,_.name))
 
       var user  =  User( 1,"Jon",1,"sdfsdf")
-      import daoUser.EntityMethods.*
+      import DaoSync.EntityMethods.*
       user.insert() should be (1)
       user = user.copy(name = "Bill")
       daoUser.update(user) should be (1)

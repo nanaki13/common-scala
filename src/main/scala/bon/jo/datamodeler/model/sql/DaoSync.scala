@@ -11,75 +11,6 @@ import java.sql.{Connection, PreparedStatement, ResultSet}
 import scala.util.Try
 import bon.jo.datamodeler.util.Utils
 
-
-
-
-case class ReqConstant(
-                        insertString : String,
-                        whereIdString : String,
-                        selectAllString : String,
-                        deleteIdString : String,
-                        deleteString : String,
-                        updateString : String):
-  val updateById = updateString + whereIdString
-  val selectById = selectAllString + whereIdString
-  println(this)
-object ReqConstant:
-
-  type Str[E] = Sql[E] ?=> String
-  inline def sqlImpl[A] : -[Sql[A]] = summon[Sql[A]]
-  inline def insertString[E]: Str[E] = {
-    Utils.stringBuilder{
-      sqlImpl.insert
-      sqlImpl.value
-      writer.toString
-    }
-  }
-
-  inline def whereIdString[E] : Str[E] = {
-    Utils.stringBuilder{
-      /(" WHERE (")
-      sqlImpl.idClause
-      /(")")
-      writer.toString
-    }
-  }
-  inline def selectAllString[E] : Str[E]  =
-    Utils.stringBuilder{
-      sqlImpl.selectMe
-      sqlImpl.from
-      writer.toString
-    }
-
-  inline def deleteIdString[E] : Str[E] =
-    Utils.stringBuilder{
-      sqlImpl.delete
-      /(" WHERE ")
-      sqlImpl.idClause
-    }
-
-  inline def deleteString[E] : Str[E] =
-    Utils.stringBuilder{
-      sqlImpl.delete
-    }
-
-  inline def updateString[E] : Str[E] =
-    Utils.stringBuilder{
-      sqlImpl.update
-    }
-
-  inline def apply[E]()(using Sql[E] ) : ReqConstant =
-    ReqConstant(insertString,whereIdString,selectAllString,deleteIdString,deleteString,updateString)
-
-class CompiledFunction[E](
-                           val  fillInsert : (E,PreparedStatement)=>Unit,
-                           val getIdFunction :(e: E) => Any,
-                           val readResultSet :( ResultSet,Int) => Seq[Any]
-                         )
-object CompiledFunction:
-  inline def apply[E]():CompiledFunction[E] =
-    new CompiledFunction(SqlMacro.fillInsert[E],SqlMacro.uniqueIdValueAny[E],SqlMacro.readResultSet[E])
-
 trait DaoSync[E,ID](using Pool[java.sql.Connection]  , Sql[E] ) extends Dao.Sync[E,ID]:
 
   val reqConstant : ReqConstant
@@ -87,14 +18,9 @@ trait DaoSync[E,ID](using Pool[java.sql.Connection]  , Sql[E] ) extends Dao.Sync
 
   extension (e : E)
     inline def __id : Any = compiledFunction.getIdFunction(e)
-  object EntityMethods:
-    extension(e : E)
-      inline def insert() : Int = DaoSync.this.insert(e)
+
   inline def sqlImpl(using  Sql[E]) = summon
 
-
-
-    
   inline def max[T](inline fSel : E => T):T =
     onStmt{
       sqlImpl.max(fSel)
@@ -104,6 +30,7 @@ trait DaoSync[E,ID](using Pool[java.sql.Connection]  , Sql[E] ) extends Dao.Sync
       val res = resQ.getObject(1)
       res.asInstanceOf[T]
     }
+
   inline def maxId : ID =
     onStmt{
       sqlImpl.maxId
@@ -121,6 +48,7 @@ trait DaoSync[E,ID](using Pool[java.sql.Connection]  , Sql[E] ) extends Dao.Sync
       fillInsert(e,SimpleSql.thisPreStmt)
       SimpleSql.thisPreStmt.executeUpdate 
     }
+
   inline def insertAll(es: Iterable[E]) : Int = 
     onPreStmt(reqConstant.insertString){
       for(e <- es)
@@ -159,6 +87,7 @@ trait DaoSync[E,ID](using Pool[java.sql.Connection]  , Sql[E] ) extends Dao.Sync
       else
         None
     }
+
   inline def selectAll()(using translate : Seq[Any] => E):List[E] =
 
     onStmt{
@@ -230,6 +159,10 @@ trait DaoSync[E,ID](using Pool[java.sql.Connection]  , Sql[E] ) extends Dao.Sync
 end DaoSync  
 
 object DaoSync:
+  inline def dao[E,ID](using DaoSync[E,ID]) :DaoSync[E,ID]= summon
+  object EntityMethods:
+    extension[E,ID](e : E)(using  DaoSync[E,ID])
+      inline def insert() : Int = dao.insert(e)
   inline def apply[E,ID](using Pool[java.sql.Connection]  , Sql[E] ) :DaoSync[E,ID] =
     new DaoSync[E,ID](){
     val reqConstant: ReqConstant = ReqConstant[E]()
