@@ -17,9 +17,9 @@ trait Dao[E,ID]:
 
   inline def insertAll(es: Iterable[E]) : W[Int]
 
-  inline def select(inline fSel : E => Any,value : Any)(using translate : List[Any] => E):W[Option[E]]
+  inline def select(inline fSel : E => Any,value : Any)(using translate : Seq[Any] => E):W[Option[E]]
 
-  inline def selectAll()(using translate : List[Any] => E):W[List[E]]
+  inline def selectAll()(using translate : Seq[Any] => E):W[List[E]]
 
   inline def deleteAll():W[Int]
 
@@ -50,9 +50,9 @@ object Dao :
   
     inline def insertAll(es: Iterable[E]) : W[Int] = Future(sync.insertAll(es))
   
-    inline def select(inline fSel : E => Any,value : Any)(using translate : List[Any] => E):W[Option[E]]
+    inline def select(inline fSel : E => Any,value : Any)(using translate : Seq[Any] => E):W[Option[E]]
   
-    inline def selectAll()(using translate : List[Any] => E):W[List[E]]
+    inline def selectAll()(using translate : Seq[Any] => E):W[List[E]]
   
     inline def deleteAll():W[Int]
   

@@ -114,10 +114,10 @@ object SqlMacro:
   def fillInsertCode[A: Type](using  Quotes): Expr[(A,PreparedStatement) => Unit] =
       '{(a: A,p : PreparedStatement) => ${SqlMacroHelper().fillInsertBody('{a},'{p})}}
   
-  def readResultCode[T: Type](using  Quotes): Expr[ResultSet => List[Any]] =
-      '{( r : ResultSet) => ${SqlMacroHelper().readResultBody('{r})}}
+  def readResultCode[T: Type](using  Quotes): Expr[(ResultSet,Int ) => Seq[Any]] =
+      '{( r : ResultSet,offset : Int) => ${SqlMacroHelper().readResultBody('{r},'{offset})}}
   
-  inline def readResultSet[T]:ResultSet => List[Any] =
+  inline def readResultSet[T]:( r : ResultSet,offset : Int) => Seq[Any] =
     ${readResultCode[T]}
   
   

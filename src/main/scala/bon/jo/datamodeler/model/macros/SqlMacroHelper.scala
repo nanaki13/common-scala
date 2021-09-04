@@ -32,14 +32,10 @@ class SqlMacroHelper[Q <: Quotes, T : Type]()(using val qq : Q) :
       fields.find(_.name == idFieldName).map(f => Select(e.asTerm, f).asExpr).get
 
 
-    def readResultBody(r : Expr[ResultSet]):Expr[List[Any]]=
-    
-      val tpes = fields.map(f =>  tpe.memberType(f))
-
-      val p = fields.zipWithIndex.map{ tpe =>
-        '{${r}.getObject( ${Expr(tpe._2)}+1)}
-      }
-      Expr.ofList(p)
+    def readResultBody(r : Expr[ResultSet],offset : Expr[Int]):Expr[Seq[Any]]=
+        '{for (i : Int <- 1 to ${GenMacro.countFields()})
+          yield ${r}.getObject(i + ${offset})
+        }
 
     def createFunctionBody[A](param: Expr[A]): Expr[String] = 
       

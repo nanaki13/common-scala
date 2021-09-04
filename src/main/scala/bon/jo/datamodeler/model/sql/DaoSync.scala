@@ -74,7 +74,7 @@ object ReqConstant:
 class CompiledFunction[E](
                            val  fillInsert : (E,PreparedStatement)=>Unit,
                            val getIdFunction :(e: E) => Any,
-                           val readResultSet : ResultSet => List[Any]
+                           val readResultSet :( ResultSet,Int) => Seq[Any]
                          )
 object CompiledFunction:
   inline def apply[E]():CompiledFunction[E] =
@@ -129,7 +129,7 @@ trait DaoSync[E,ID](using Pool[java.sql.Connection]  , Sql[E] ) extends Dao.Sync
       SimpleSql.thisPreStmt.executeBatch.sum
     }
 
-  inline def select(inline fSel : E => Any,value : Any)(using translate : List[Any] => E):Option[E] =  
+  inline def select(inline fSel : E => Any,value : Any)(using translate : Seq[Any] => E):Option[E] =
     val selSql = Utils.stringBuilder{
       sqlImpl.selectMe 
       sqlImpl.from
@@ -143,27 +143,27 @@ trait DaoSync[E,ID](using Pool[java.sql.Connection]  , Sql[E] ) extends Dao.Sync
       if(res.next()) 
       then 
 
-        Some((translate(compiledFunction.readResultSet(res))))
+        Some((translate(compiledFunction.readResultSet(res,0))))
       else
         None
     }
 
-  inline def selectById(value : ID)(using translate : List[Any] => E):Option[E] =
+  inline def selectById(value : ID)(using translate : Seq[Any] => E):Option[E] =
     onPreStmt(reqConstant.selectById){
       SimpleSql.thisPreStmt.setObject(1,value)
       val res = SimpleSql.thisPreStmt.executeQuery()
       if(res.next())
       then
 
-        Some((translate(compiledFunction.readResultSet(res))))
+        Some((translate(compiledFunction.readResultSet(res, 0))))
       else
         None
     }
-  inline def selectAll()(using translate : List[Any] => E):List[E] =  
+  inline def selectAll()(using translate : Seq[Any] => E):List[E] =
 
     onStmt{
       val res = SimpleSql.thisStmt.executeQuery(reqConstant.selectAllString)
-      res.iterator(r => translate(compiledFunction.readResultSet(r))).toList
+      res.iterator(r => translate(compiledFunction.readResultSet(r, 0))).toList
       
     }
   

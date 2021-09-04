@@ -42,8 +42,21 @@ trait Sql[A]:
     /(',')
     /(SqlMacro.columnsName[B])
     this
+
+  inline def columnName[B] : UsingSb[Sql[A]] =
+    /(SqlMacro.columnsName[B].mkString(", "))
+    this
+
+  inline def columnNameAlias[B](alias : String) : UsingSb[Sql[A]] =
+    /(SqlMacro.columnsName[B].map(alias+"."+_).mkString(", "))
+    this
   inline def from : UsingSb[Sql[A]] =
     SqlWriter.from[A]
+    this
+
+  inline def fromAlias(alias : String) : UsingSb[Sql[A]] =
+    SqlWriter.from[A]
+    /(" "+alias)
     this
   inline def insert : UsingSb[Sql[A]] =
     SqlWriter.insert[A]
@@ -71,13 +84,12 @@ trait Sql[A]:
     /(GenMacro.fieldSelection[A](f)._2)
     this
 
-  inline def join[B](inline f: A => Any,inline g: B => Any): UsingSb[Sql[A]] =
-    /(" JOIN ")
-    /(SqlMacro.tableName[B].name)
+  inline def join[B](aliasA : String, aliasB : String)(inline f: A => Any,inline g: B => Any): UsingSb[Sql[A]] =
+    /(s" JOIN $aliasB.${SqlMacro.tableName[B].name}")
     /(" ON ")
-    /(GenMacro.fieldSelection[A](f)._2)
+    /(s"$aliasA.${GenMacro.fieldSelection[A](f)._2}")
     /(" = ")
-    /(GenMacro.fieldSelection[B](g)._2)
+    /(s"$aliasB.${GenMacro.fieldSelection[B](g)._2}")
     this
 
 
