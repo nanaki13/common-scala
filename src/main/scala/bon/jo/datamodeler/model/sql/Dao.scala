@@ -31,6 +31,8 @@ trait Dao[E,ID]:
 
   inline def delete( e : E,inline f : E => Any) : W[Int]
 
+  //inline def join[B](using )
+
 object Dao :
   trait Sync[E,ID] extends Dao[E,ID]:
     type W[A] = A

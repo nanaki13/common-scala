@@ -5,13 +5,11 @@ import bon.jo.datamodeler.util.Pool
 import bon.jo.datamodeler.model.sql.SimpleSql
 import bon.jo.datamodeler.model.sql.Sql
 import bon.jo.datamodeler.model.macros.{GenMacro, SqlMacro}
-import bon.jo.datamodeler.util.Utils.{/, UsingSb, writer}
+import bon.jo.datamodeler.util.Utils.{-, /, UsingSb, writer}
 
-import java.sql.Connection
+import java.sql.{Connection, PreparedStatement, ResultSet}
 import scala.util.Try
 import bon.jo.datamodeler.util.Utils
-
-import java.sql.ResultSet
 
 
 
@@ -22,11 +20,14 @@ case class ReqConstant(
                         selectAllString : String,
                         deleteIdString : String,
                         deleteString : String,
-                        updateString : String)
+                        updateString : String):
+  val updateById = updateString + whereIdString
+  val selectById = selectAllString + whereIdString
+  println(this)
 object ReqConstant:
-  type SQL[A,B] = Sql[A] ?=> B
+
   type Str[E] = Sql[E] ?=> String
-  inline def sqlImpl[A] : SQL[A,Sql[A]] = summon[Sql[A]]
+  inline def sqlImpl[A] : -[Sql[A]] = summon[Sql[A]]
   inline def insertString[E]: Str[E] = {
     Utils.stringBuilder{
       sqlImpl.insert
@@ -70,11 +71,22 @@ object ReqConstant:
   inline def apply[E]()(using Sql[E] ) : ReqConstant =
     ReqConstant(insertString,whereIdString,selectAllString,deleteIdString,deleteString,updateString)
 
+class CompiledFunction[E](
+                           val  fillInsert : (E,PreparedStatement)=>Unit,
+                           val getIdFunction :(e: E) => Any,
+                           val readResultSet : ResultSet => List[Any]
+                         )
+object CompiledFunction:
+  inline def apply[E]():CompiledFunction[E] =
+    new CompiledFunction(SqlMacro.fillInsert[E],SqlMacro.uniqueIdValueAny[E],SqlMacro.readResultSet[E])
 
 trait DaoSync[E,ID](using Pool[java.sql.Connection]  , Sql[E] ) extends Dao.Sync[E,ID]:
 
   val reqConstant : ReqConstant
+  val compiledFunction : CompiledFunction[E]
 
+  extension (e : E)
+    inline def __id : Any = compiledFunction.getIdFunction(e)
   object EntityMethods:
     extension(e : E)
       inline def insert() : Int = DaoSync.this.insert(e)
@@ -102,7 +114,7 @@ trait DaoSync[E,ID](using Pool[java.sql.Connection]  , Sql[E] ) extends Dao.Sync
       res.asInstanceOf[ID]
     }
 
-  inline def fillInsert = SqlMacro.fillInsert[E]
+  inline def fillInsert = compiledFunction.fillInsert
 
   inline def insert(e: E) : Int = 
     onPreStmt(reqConstant.insertString){
@@ -113,7 +125,7 @@ trait DaoSync[E,ID](using Pool[java.sql.Connection]  , Sql[E] ) extends Dao.Sync
     onPreStmt(reqConstant.insertString){
       for(e <- es)
         fillInsert(e,SimpleSql.thisPreStmt)
-        SimpleSql.thisPreStmt.executeUpdate 
+        SimpleSql.thisPreStmt.addBatch()
       SimpleSql.thisPreStmt.executeBatch.sum
     }
 
@@ -123,23 +135,35 @@ trait DaoSync[E,ID](using Pool[java.sql.Connection]  , Sql[E] ) extends Dao.Sync
       sqlImpl.from
       sqlImpl.where(fSel) === "?"
     }
+
     onPreStmt(selSql){
       
       SimpleSql.thisPreStmt.setObject(1,value)
       val res = SimpleSql.thisPreStmt.executeQuery()
       if(res.next()) 
       then 
-        val readUser = SqlMacro.readResultSet[E]
-        Some((translate(readUser(res))))
+
+        Some((translate(compiledFunction.readResultSet(res))))
+      else
+        None
+    }
+
+  inline def selectById(value : ID)(using translate : List[Any] => E):Option[E] =
+    onPreStmt(reqConstant.selectById){
+      SimpleSql.thisPreStmt.setObject(1,value)
+      val res = SimpleSql.thisPreStmt.executeQuery()
+      if(res.next())
+      then
+
+        Some((translate(compiledFunction.readResultSet(res))))
       else
         None
     }
   inline def selectAll()(using translate : List[Any] => E):List[E] =  
 
     onStmt{
-      val readUser = SqlMacro.readResultSet[E]
       val res = SimpleSql.thisStmt.executeQuery(reqConstant.selectAllString)
-      res.iterator(r => translate(readUser(r))).toList
+      res.iterator(r => translate(compiledFunction.readResultSet(r))).toList
       
     }
   
@@ -149,10 +173,7 @@ trait DaoSync[E,ID](using Pool[java.sql.Connection]  , Sql[E] ) extends Dao.Sync
     }
 
   inline def update(id : ID,e: E) : Int =
-    println(e)
-    val updateById = reqConstant.updateString + reqConstant.whereIdString
-    println(updateById)
-    onPreStmt(updateById){
+    onPreStmt(reqConstant.updateById){
       val nbCol = GenMacro.countFields[E]
       fillInsert(e,SimpleSql.thisPreStmt)
       SimpleSql.thisPreStmt.setObject(nbCol+1,id)
@@ -160,14 +181,21 @@ trait DaoSync[E,ID](using Pool[java.sql.Connection]  , Sql[E] ) extends Dao.Sync
     }
 
   inline def update(e: E) : Int =
-    println(e)
-    val updateById = reqConstant.updateString + reqConstant.whereIdString
-    println(updateById)
-    onPreStmt(updateById){
+    onPreStmt(reqConstant.updateById){
       val nbCol = GenMacro.countFields[E]
       fillInsert(e,SimpleSql.thisPreStmt)
-      SimpleSql.thisPreStmt.setObject(nbCol+1,SqlMacro.uniqueIdValueAny(e))
+      SimpleSql.thisPreStmt.setObject(nbCol+1,e.__id)
       SimpleSql.thisPreStmt.executeUpdate
+    }
+
+  inline def updateAll(es:  Iterable[E]) : Int =
+    onPreStmt(reqConstant.updateById){
+      val nbCol = GenMacro.countFields[E]
+      for(e <- es)
+        fillInsert(e,SimpleSql.thisPreStmt)
+        SimpleSql.thisPreStmt.setObject(nbCol+1,e.__id)
+        SimpleSql.thisPreStmt.addBatch()
+      SimpleSql.thisPreStmt.executeBatch.sum
     }
 
   inline def delete( e : ID) : Int =
@@ -205,12 +233,14 @@ object DaoSync:
   inline def apply[E,ID](using Pool[java.sql.Connection]  , Sql[E] ) :DaoSync[E,ID] =
     new DaoSync[E,ID](){
     val reqConstant: ReqConstant = ReqConstant[E]()
+    val compiledFunction: CompiledFunction[E] = CompiledFunction()
   }
 
   object IntDaoSync :
     inline def apply[E](inline fromIdF : (id : Int,e : E) => E)(using Pool[java.sql.Connection]  , Sql[E] ) :IntDaoSync[E] =
       new IntDaoSync[E](){
         val reqConstant: ReqConstant = ReqConstant[E]()
+        val compiledFunction: CompiledFunction[E] = CompiledFunction()
         def fromId(id : Int,e : E) : E = fromIdF(id,e)
       }
   trait IntDaoSync[E](using Pool[java.sql.Connection]  ,    Sql[E] ) extends DaoSync[E,Int]:

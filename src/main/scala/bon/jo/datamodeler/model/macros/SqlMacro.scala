@@ -54,9 +54,11 @@ object SqlMacro:
 
   inline def sqlTypesDef[T]:List[String] = 
     ${sqlTypesDefCode[T]}
-  inline def uniqueIdValue[T,ID](inline t : T):ID = uniqueIdValueAny[T](t).asInstanceOf[ID]
-  inline def uniqueIdValueAny[T](inline t : T):Any = ${uniqueIdValueCode[T]('t)}
-  def uniqueIdValueCode[T: Type](t : Expr[T])(using  Quotes) :Expr[Any] = SqlMacroHelper().uniqueIdValueCode(t)
+  inline def uniqueIdValue[T,ID]:T => ID = uniqueIdValueAny[T].andThen(_.asInstanceOf[ID])
+  inline def uniqueIdValueAny[T]:(e : T) => Any = ${uniqueIdValueCode[T]}
+  def uniqueIdValueCode[T: Type](using  Quotes) :Expr[T => Any] = '{
+    (t : T) =>  ${SqlMacroHelper().uniqueIdValueCode('t)}
+  }
   def uniqueIdStringCode[T: Type](using  Quotes):Expr[String] = 
     SqlMacroHelper().uniqueIdString
 
