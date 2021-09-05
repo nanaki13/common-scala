@@ -6,14 +6,14 @@ import bon.jo.datamodeler.model.sql.SimpleSql
 import bon.jo.datamodeler.model.sql.Sql
 import bon.jo.datamodeler.model.macros.{GenMacro, SqlMacro}
 import bon.jo.datamodeler.util.Utils.{-, /, UsingSb, writer}
-
+import bon.jo.datamodeler.util.Alias.given
 import java.sql.{Connection, PreparedStatement, ResultSet}
 import scala.util.Try
 import bon.jo.datamodeler.util.Utils
 
 trait DaoSync[E,ID](using Pool[java.sql.Connection]  , Sql[E] ) extends Dao.Sync[E,ID]:
 
-  val reqConstant : ReqConstant
+  val reqConstant : ReqConstant[E]
   val compiledFunction : CompiledFunction[E]
 
   extension (e : E)
@@ -117,6 +117,12 @@ trait DaoSync[E,ID](using Pool[java.sql.Connection]  , Sql[E] ) extends Dao.Sync
       SimpleSql.thisPreStmt.executeUpdate
     }
 
+  inline def delete(e: E) : Int =
+    onPreStmt(reqConstant.deleteIdString){
+      SimpleSql.thisPreStmt.setObject(1,e.__id)
+      SimpleSql.thisPreStmt.executeUpdate
+    }
+
   inline def updateAll(es:  Iterable[E]) : Int =
     onPreStmt(reqConstant.updateById){
       val nbCol = GenMacro.countFields[E]
@@ -127,7 +133,7 @@ trait DaoSync[E,ID](using Pool[java.sql.Connection]  , Sql[E] ) extends Dao.Sync
       SimpleSql.thisPreStmt.executeBatch.sum
     }
 
-  inline def delete( e : ID) : Int =
+  inline def deleteById( e : ID) : Int =
     onPreStmt(reqConstant.deleteIdString){
       SimpleSql.thisPreStmt.setObject(1,e)
       SimpleSql.thisPreStmt.executeUpdate()
@@ -144,6 +150,23 @@ trait DaoSync[E,ID](using Pool[java.sql.Connection]  , Sql[E] ) extends Dao.Sync
       SimpleSql.thisPreStmt.setObject(1,f(e))
       SimpleSql.thisPreStmt.executeUpdate()
     }
+
+  inline def join[B,IDB](inline fk : E => IDB)(using Dao.Sync[B,IDB],Seq[Any] => E,Seq[Any] => B):W[List[(E,B)]] =
+    val otherDao : Dao.Sync[B,IDB] = summon[ Dao.Sync[B,IDB]]
+    val l : Seq[Any] => E = summon[Seq[Any] => E]
+    val r : Seq[Any] => B = summon[Seq[Any] => B]
+    val join = ReqConstant.selectJoin(reqConstant,otherDao.reqConstant,GenMacro.fieldSelection(fk)._2,SqlMacro.uniqueIdString[B])
+
+    def readResulsetJoin(resultSet: ResultSet):(E,B) =
+      (l(compiledFunction.readResultSet(resultSet,0)),
+      r(otherDao.compiledFunction.readResultSet(resultSet,reqConstant.columns.size)))
+
+    onStmt{
+      val res = SimpleSql.thisStmt.executeQuery(join)
+      res.iterator(readResulsetJoin).toList
+
+    }
+
        
     
   extension (r : ResultSet)
@@ -163,16 +186,33 @@ object DaoSync:
   object EntityMethods:
     extension[E,ID](e : E)(using  DaoSync[E,ID])
       inline def insert() : Int = dao.insert(e)
-  inline def apply[E,ID](using Pool[java.sql.Connection]  , Sql[E] ) :DaoSync[E,ID] =
-    new DaoSync[E,ID](){
-    val reqConstant: ReqConstant = ReqConstant[E]()
-    val compiledFunction: CompiledFunction[E] = CompiledFunction()
-  }
+      inline def update() : Int = dao.update(e)
+      inline def delete() : Int = dao.delete(e)
+
+    extension[E,ID](e : E)(using  IntDaoSync[E])
+      inline def save() : Int = summon[IntDaoSync[E]].save(e)
+  class BasDaoSync[E,ID](   freeId :()=> ID , fromIdF : (id : ID,e : E) => E)(using Pool[java.sql.Connection]  , Sql[E],CompiledFunction[E],ReqConstant[E] ) extends  DaoSync[E,ID]:
+
+    val reqConstant: ReqConstant[E] = summon[ReqConstant[E]]
+    val compiledFunction: CompiledFunction[E] = summon[CompiledFunction[E]]
+    inline def save(e : E) : Int =
+      insert(fromIdF(freeId(),e))
+
+    inline def saveAll(es : Iterable[E]) : Int =
+
+      insertAll(es.map{
+        e =>
+          val res = fromIdF(freeId(),e)
+
+          res
+      })
+  inline def apply[E,ID]( inline  freeId :()=> ID ,inline fromIdF : (id : ID,e : E) => E)(using Pool[java.sql.Connection]  , Sql[E],CompiledFunction[E],ReqConstant[E] ) :DaoSync[E,ID] =
+    BasDaoSync(freeId,fromIdF)
 
   object IntDaoSync :
     inline def apply[E](inline fromIdF : (id : Int,e : E) => E)(using Pool[java.sql.Connection]  , Sql[E] ) :IntDaoSync[E] =
       new IntDaoSync[E](){
-        val reqConstant: ReqConstant = ReqConstant[E]()
+        val reqConstant: ReqConstant[E] = ReqConstant[E]()
         val compiledFunction: CompiledFunction[E] = CompiledFunction()
         def fromId(id : Int,e : E) : E = fromIdF(id,e)
       }

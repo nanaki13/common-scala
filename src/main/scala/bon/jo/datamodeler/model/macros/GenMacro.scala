@@ -4,8 +4,14 @@ import scala.annotation.tailrec
 import java.sql.ResultSet
 object GenMacro :
   def inspectCode(x: Expr[Any])(using Quotes): Expr[Any] =
-    Expr(x.show) 
+    Expr(x.show)
 
+  inline def log(inline x: Any): Unit =
+    println(debug(x))
+  def debugCode(x: Expr[Any])(using Quotes): Expr[Any] =
+   '{${ Expr(x.show)} + " = "+ ${x}}
+  inline def debug(inline x: Any): Any =
+    ${debugCode('x)}
   inline def countFields[T]: Int = ${ countFields[T]() }
 
   def countFields[T: Type]()(using Quotes): Expr[Int] =
@@ -13,7 +19,7 @@ object GenMacro :
     val tpe: TypeRepr = TypeRepr.of[T]
     Expr(tpe.typeSymbol.declaredFields.size)
 
-  inline def testConstructor[T] :T= ${ testConstructorCode[T] }
+  /*inline def testConstructor[T] :T= ${ testConstructorCode[T] }
 
   def testConstructorCode[T : Type ](using  Quotes) : Expr[T]= 
     import quotes.reflect.*
@@ -22,7 +28,7 @@ object GenMacro :
     val symbol = tpe.typeSymbol
     val construcot = symbol.primaryConstructor
     val x = Inlined(None, Nil, Apply(Select(New(TypeIdent(symbol)), construcot), List(Literal(IntConstant(0)), Literal(StringConstant("abc")), Literal(IntConstant(1)), Literal(StringConstant("email")))))  
-    x.asExprOf[T]
+    x.asExprOf[T]*/
 
 
   inline def printTree[T](inline x: T): Unit = ${printTreeImpl('x)}
