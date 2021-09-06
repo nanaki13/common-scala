@@ -3,7 +3,8 @@ package bon.jo.datamodeler.model.sql
 import java.sql.{Connection, DriverManager, Statement}
 import scala.reflect.ClassTag
 import java.sql.PreparedStatement
-import bon.jo.datamodeler.model.macros.SqlMacro
+import bon.jo.datamodeler.model.macros.{GenMacro, SqlMacro}
+
 import scala.annotation.tailrec
 import scala.annotation.StaticAnnotation
 import bon.jo.datamodeler.model.Model.User
@@ -72,14 +73,23 @@ object SimpleSql {
   inline def createTable[T]:S[Unit] = 
     val tableName = SqlMacro.tableName[T]
     val typesDef : List[Any] = SqlMacro.sqlTypesDef[T]
+
+    val ids = SqlMacro.idsString[T]
     val statlment = s"""
 |CREATE TABLE ${tableName.name} (
 |   ${typesDef.mkString(", ")}
-|
+|   ${
+      if(ids.length > 1 )
+      then s",PRIMARY KEY (${ids.mkString(", ")})"
+      else ""
+
+    }
 |)
 |
     """.stripMargin
 
+
+    GenMacro.log(statlment)
     thisStmt.executeUpdate(statlment)
 
   
