@@ -36,6 +36,8 @@ object ReqConstant:
 
   def selectJoin(left : ReqConstant[_], right : ReqConstant[_],leftCol : String,rightCol:String) =
     s"SELECT ${left.columnsAlias},${right.columnsAlias} FROM ${left.tableAlias} JOIN ${right.tableAlias} ON ${left.alias}.$leftCol = ${right.alias}.$rightCol"
+  def join(left : ReqConstant[_], right : ReqConstant[_],leftCol : String,rightCol:String) =
+    s"JOIN ${right.tableAlias} ON ${left.alias}.$leftCol = ${right.alias}.$rightCol"
   inline def insertString[E] : Str[E] = {
     Utils.stringBuilder {
       sqlImpl.insert

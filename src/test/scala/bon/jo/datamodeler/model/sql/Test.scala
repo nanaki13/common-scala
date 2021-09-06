@@ -1,7 +1,7 @@
 package bon.jo.datamodeler.model.sql
 
-import bon.jo.datamodeler.model.Model.User
-import bon.jo.datamodeler.model.sql.DaoSync
+import bon.jo.datamodeler.model.Model.{User, UserRoom}
+import bon.jo.datamodeler.model.sql.DaoImpl
 import bon.jo.datamodeler.util.Utils.writer
 import bon.jo.datamodeler.util.{ConnectionPool, Pool}
 import org.scalatest.*
@@ -13,10 +13,11 @@ import java.time.LocalDateTime
 
 class Test extends AnyFlatSpec with should.Matchers:
   "A dao" should "can save, update, delete ..." in {
-    inline def lToUser(raw : Seq[Any]):User = User(raw(0).asInstanceOf ,raw(1).asInstanceOf,raw(2).asInstanceOf,raw(3).asInstanceOf)
+    inline def lToUser(raw : Seq[Any]):User = User(raw(0).asInstanceOf ,raw(1).asInstanceOf,raw(2).asInstanceOf)
     given (Seq[Any] => User) = e => lToUser(e)
     given (Seq[Any] => Event) = raw =>  Event(raw(0).asInstanceOf ,LocalDateTime.parse(raw(1).toString))
     given (Seq[Any] => Groupe) = raw =>  Groupe(raw(0).asInstanceOf ,raw(1).asInstanceOf)
+    given (Seq[Any] => UserRoom) = raw =>  UserRoom(raw(0).asInstanceOf ,raw(1).asInstanceOf)
     case class Event(id : Int,time : LocalDateTime = LocalDateTime.now)
     case class Groupe(id : Int, name : String = "Groupe 1")
     given StringBuilder = StringBuilder()
@@ -24,22 +25,16 @@ class Test extends AnyFlatSpec with should.Matchers:
     given Sql[Event] = Sql()
     given Sql[User] = Sql()
     given Sql[Groupe] = Sql()
-    given daoUser : DaoSync.IntDaoSync[User] = DaoSync.IntDaoSync.apply[User]((id,e ) => e.copy(id = id) )
-    given eventDao : DaoSync.IntDaoSync[Event] = DaoSync.IntDaoSync.apply[Event]((id,e ) => e.copy(id = id) )
-    given groupDao : DaoSync.IntDaoSync[Groupe] = DaoSync.IntDaoSync.apply[Groupe]((id,e ) => e.copy(id = id) )
+    given Sql[UserRoom] = Sql()
+    given daoUser : DaoImpl.IntDaoSync[User] = DaoImpl.IntDaoSync.apply[User]((id, e ) => e.copy(id = id) )
+    given eventDao : DaoImpl.IntDaoSync[Event] = DaoImpl.IntDaoSync.apply[Event]((id, e ) => e.copy(id = id) )
+    given groupDao : DaoImpl.IntDaoSync[Groupe] = DaoImpl.IntDaoSync.apply[Groupe]((id, e ) => e.copy(id = id) )
     //  SimpleSql.
-
+ //   given userRoom : DaoSync.IntDaoSync[UserRoom] = DaoSync.IntDaoSync.apply[UserRoom]((id,e ) => e.copy(id = id) )
     import bon.jo.datamodeler.util.ConnectionPool.*
 
     given  Connection =  pool.get
 
-    def testSelect =
-      println(daoUser.select(_.id,2))
-      println(daoUser.select(_.id,1))
-      println(daoUser.max(_.id))
-      println(daoUser.maxId)
-
-      println(eventDao.maxId)
 
     def t2 =
 
@@ -52,6 +47,8 @@ class Test extends AnyFlatSpec with should.Matchers:
         println( SimpleSql.createTable[Event])
         println( SimpleSql.dropTable[Groupe])
         println( SimpleSql.createTable[Groupe])
+        println( SimpleSql.dropTable[UserRoom])
+        println( SimpleSql.createTable[UserRoom])
         SimpleSql.thisStmt.close
 
       }
@@ -60,7 +57,7 @@ class Test extends AnyFlatSpec with should.Matchers:
       println(daoUser.select(_.id,1))
       val( users,evs) =
         (for (i <- 1 to 10)
-          yield (User( i,"totototo",1,"sdfsdf"),Event( i))).unzip
+          yield (User( i,"totototo","sdfsdf"),Event( i))).unzip
       daoUser.insertAll(users) should be (users.size)
       eventDao.insertAll(evs) should be (evs.size)
       println("id 2 : ")
@@ -68,16 +65,19 @@ class Test extends AnyFlatSpec with should.Matchers:
       daoUser.saveAll(users) should be (users.size)
       eventDao.saveAll(evs) should be (evs.size)
 
-      val u  = User( 1,"totototo",1,"sdfsdf")
+      val u  = User( 1,"totototo","sdfsdf")
       daoUser.delete(u) should be (1)
       println("id clause : "+daoUser.delete(u,_.name))
 
-      var user  =  User( 1,"Jon",1,"sdfsdf")
-      import DaoSync.EntityMethods.*
-      user.save() should be (1)
+      var user  =  User( 1,"Jon","sdfsdf")
+      {
+        import DaoImpl.EntityMethods.*
+        user.save() should be (1)
 
 
-      user.save() should be (1)
+        user.save() should be (1)
+      }
+
 
 
 
@@ -85,8 +85,12 @@ class Test extends AnyFlatSpec with should.Matchers:
       daoUser.update(user) should be (1)
       (daoUser.select(_.id,1)).get should be (user)
       val group  = Groupe(1)
-      group.insert() should be (1)
-      println(daoUser.join[Groupe,Int](_.groupe))
+      {
+        import DaoImpl.EntityMethods.*
+        group.insert() should be (1)
+      }
+
+     // println(daoUser.join[Groupe,Int](_.groupe))
     //  println(eventDao.delete(daoUser.select(_.id,1)))
 
 

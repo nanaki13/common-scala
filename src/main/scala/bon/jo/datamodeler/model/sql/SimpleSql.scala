@@ -83,28 +83,5 @@ object SimpleSql {
     thisStmt.executeUpdate(statlment)
 
   
-  @main def testB  = 
-    import bon.jo.datamodeler.model.Dsl.*
-    import bon.jo.datamodeler.model.ToSql.toSqlCreate
 
-
-
-    import SimpleSql.*
-    val update = connect("jdbc:sqlite:sample.db"){
-      //  val updateRes= stmt{
-         // thisStmt.executeUpdate(userEntity.toSqlCreate())
-         // thisStmt.close
-      
-
-
-       // }
-        given User = User(1,"",0)
-        given  ProductReader[User] =  ProductReader[User]("user")
-        given PreparedStatement = prepareInsert[User]
-        insert(User(1,"test",1))
-        executeBatch()
-      //  println(updateRes)
-        thisCon.close
-      }
-      println(update)
 }
