@@ -22,11 +22,7 @@ case class ReqConstant[E](
   val from = s"FROM $table"
   val tableAlias = s"$table $alias"
   val fromTableAlias = s"FROM $tableAlias"
-  println(this)
-  GenMacro.log(updateById)
-  GenMacro.log(selectById)
-  GenMacro.log(columnsComa)
-  GenMacro.log(columnsAlias)
+
 
 object ReqConstant:
 

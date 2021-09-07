@@ -31,11 +31,11 @@ class SqlMacroHelper[Q <: Quotes, T : Type]()(using val qq : Q) :
 
     def uniqueIdValueCode[E,ID](e : Expr[E]):Expr[Any] =
       val idFieldName = uniqueId.name
-      println(idFieldName)
-      println(fields.find(_.name == idFieldName))
+
       fields.find(_.name == idFieldName).map(f => Select(e.asTerm, f).asExpr).get
 
 
+    //TODO Convert into E, see GenMacro.listToFunction
     def readResultBody(r : Expr[ResultSet],offset : Expr[Int]):Expr[Seq[Any]]=
         '{for (i : Int <- 1 to ${GenMacro.countFields()})
           yield ${r}.getObject(i + ${offset})
@@ -69,12 +69,12 @@ class SqlMacroHelper[Q <: Quotes, T : Type]()(using val qq : Q) :
       val ids = idFieldsCode
 
       val monoId  = ids.size == 1
-      println("sqlTypesDefCode")
+
       // val idFieldsSymbols = symbol.primaryConstructor.paramSymss.flatMap(_.filter(_.getAnnotation(sbe).nonEmpty))
       val f = fields.map(f =>
         given StringBuilder = StringBuilder()
 
-        println(f)
+   
         /( s"${f.name}")
         tpe.memberType(f).asType match
           case '[Int] =>  /(" INT")
@@ -88,7 +88,7 @@ class SqlMacroHelper[Q <: Quotes, T : Type]()(using val qq : Q) :
         then
           /(" PRIMARY KEY")
 
-        println(writer)
+     
         writer.toString
       )
       Expr(f)

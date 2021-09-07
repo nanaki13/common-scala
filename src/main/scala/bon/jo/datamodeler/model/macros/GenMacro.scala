@@ -37,12 +37,27 @@ object GenMacro :
     println(x.asTerm.show(using Printer.TreeStructure))
     println(x.asTerm)
     println(x.show)
+
+
     '{()}
 
 
   inline def fieldSelection[T](inline t : T => Any):(String,String) =
     ${fieldSelectionCode[T => Any]('t)}
-  def fieldSelectionCode[T : Type]( t : Expr[T])(using  Quotes):Expr[(String,String)] = Help().fieldSelectionCode(t)
+  def fieldSelectionCode[T : Type]( t : Expr[T])(using  Quotes):Expr[(String,String)] =
+    Help().fieldSelectionCode(t)
+
+  inline def listTo[T](inline t : Seq[Any]):T =
+      ${listToCode[T]('t)}
+
+  inline def listToFunction[T]:Seq[Any] => T =
+      ${listToFunctionCode[T]}
+
+  def listToCode[T : Type]( t : Expr[Seq[Any]])(using  Quotes):Expr[T] =
+    Help().listTo(t)
+
+  def listToFunctionCode[T : Type](using  Quotes):Expr[Seq[Any] =>T] =
+    '{t => ${Help().listTo('t)}}
   
 
 
@@ -50,13 +65,22 @@ object GenMacro :
 class Help[Q <: Quotes, T : Type]()(using val qq : Q) :
  
   import  qq.reflect.*
-  lazy val tpe = TypeRepr.of[T]
+  lazy val tpe : TypeRepr = TypeRepr.of[T]
   lazy val symbol = tpe.typeSymbol
   lazy val tr = TypeTree.of[T]
   lazy val constructor = symbol.primaryConstructor
   lazy val  name = symbol.name
 
   lazy val constructorParamLists: List[List[Symbol]] = constructor.paramSymss
+
+  def listTo[E : Type](t : Expr[Seq[Any]]) : Expr[E] =
+      val size = tpe.typeSymbol.declaredFields.size
+      val listSymbol = TypeRepr.of[scala.collection.SeqOps].typeSymbol
+      val applyMethod =listSymbol.declaredMethods.find(_.name == "apply")
+      val parms = for (i <- 0 until size)
+        yield(tp : TypeRepr) => TypeApply(Select.unique(Apply(Select(t.asTerm, applyMethod.get), List(Literal(IntConstant(i)))), "asInstanceOf"), List(Inferred(tp)))
+      val typed = (constructorParamLists(0).map(tpe.memberType(_)) zip parms) map ((tp,fTp) => fTp(tp))
+      Inlined(None, Nil, Apply(Select(New(TypeIdent(symbol)), constructor), typed)).asExprOf[E]
 
 
   def fieldSelectionCode[T : Type]( t : Expr[T]):Expr[(String,String)] =

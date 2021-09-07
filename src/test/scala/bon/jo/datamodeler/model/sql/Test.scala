@@ -1,7 +1,8 @@
 package bon.jo.datamodeler.model.sql
 
-import bon.jo.datamodeler.model.Model.{User, UserRoom, Room}
-import bon.jo.datamodeler.model.sql.DaoImpl
+import bon.jo.datamodeler.model.Model.{Event, Groupe, Room, User, UserRoom}
+import bon.jo.datamodeler.model.macros.GenMacro
+import bon.jo.datamodeler.model.sql.Dao
 import bon.jo.datamodeler.util.Utils.writer
 import bon.jo.datamodeler.util.{ConnectionPool, Pool}
 import org.scalatest.*
@@ -13,14 +14,13 @@ import java.time.LocalDateTime
 
 class Test extends AnyFlatSpec with should.Matchers:
   "A dao" should "can save, update, delete ..." in {
-    inline def lToUser(raw : Seq[Any]):User = User(raw(0).asInstanceOf ,raw(1).asInstanceOf,raw(2).asInstanceOf)
-    given (Seq[Any] => User) = e => lToUser(e)
+
+    given (Seq[Any] => User) = GenMacro.listToFunction[User]
     given (Seq[Any] => Event) = raw =>  Event(raw(0).asInstanceOf ,LocalDateTime.parse(raw(1).toString))
-    given (Seq[Any] => Groupe) = raw =>  Groupe(raw(0).asInstanceOf ,raw(1).asInstanceOf)
-    given (Seq[Any] => UserRoom) = raw =>  UserRoom(raw(0).asInstanceOf ,raw(1).asInstanceOf)
-    given (Seq[Any] => Room) = raw =>  Room(raw(0).asInstanceOf ,raw(1).asInstanceOf)
-    case class Event(id : Int,time : LocalDateTime = LocalDateTime.now)
-    case class Groupe(id : Int, name : String = "Groupe 1")
+    given (Seq[Any] => Groupe) = GenMacro.listToFunction[Groupe]
+    given (Seq[Any] => UserRoom) = GenMacro.listToFunction[UserRoom]
+    given (Seq[Any] => Room) = GenMacro.listToFunction[Room]
+
     given StringBuilder = StringBuilder()
     given Pool[java.sql.Connection] = ConnectionPool(10)("jdbc:sqlite:sample.db","org.sqlite.JDBC")
     given Sql[Event] = Sql()
@@ -28,18 +28,12 @@ class Test extends AnyFlatSpec with should.Matchers:
     given Sql[Room] = Sql()
     given Sql[Groupe] = Sql()
     given Sql[UserRoom] = Sql()
-    given daoRoom :  DaoImpl.IntDaoSync[Room] = DaoImpl.IntDaoSync.apply[Room]((id, e ) => e.copy(id = id) )
-    given daoUser : DaoImpl.IntDaoSync[User] = DaoImpl.IntDaoSync.apply[User]((id, e ) => e.copy(id = id) )
-    given eventDao : DaoImpl.IntDaoSync[Event] = DaoImpl.IntDaoSync.apply[Event]((id, e ) => e.copy(id = id) )
-    given groupDao : DaoImpl.IntDaoSync[Groupe] = DaoImpl.IntDaoSync.apply[Groupe]((id, e ) => e.copy(id = id) )
-    type DaoI[A] = RawDaoImpl[A,CompiledFunction[A]]
-    val linkDao : DaoI[UserRoom] = new RawDaoImpl[UserRoom,CompiledFunction[UserRoom]]{
-      override val reqConstant: ReqConstant[UserRoom] = ReqConstant()
-      override val compiledFunction: CompiledFunction[UserRoom] = CompiledFunction()
-      override type W[A] = A
+    given daoRoom :  Dao.IntDaoSync[Room] = Dao.IntDaoSync[Room]((id, e ) => e.copy(id = id) )
+    given daoUser : Dao.IntDaoSync[User] = Dao.IntDaoSync[User]((id, e ) => e.copy(id = id) )
+    given eventDao : Dao.IntDaoSync[Event] = Dao.IntDaoSync[Event]((id, e ) => e.copy(id = id) )
+    given groupDao : Dao.IntDaoSync[Groupe] = Dao.IntDaoSync[Groupe]((id, e ) => e.copy(id = id) )
 
-      override def wFactory[A](a: A): A = a
-    }
+    val linkDao : RawDao.Dao[UserRoom] = RawDao[UserRoom]
     //  SimpleSql.
  //   given userRoom : DaoSync.IntDaoSync[UserRoom] = DaoSync.IntDaoSync.apply[UserRoom]((id,e ) => e.copy(id = id) )
     import bon.jo.datamodeler.util.ConnectionPool.*
@@ -84,7 +78,7 @@ class Test extends AnyFlatSpec with should.Matchers:
 
 
       {
-        import DaoImpl.EntityMethods.*
+        import Dao.EntityMethods.*
         user.save() should be (1)
 
 
