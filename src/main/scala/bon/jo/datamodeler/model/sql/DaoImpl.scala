@@ -16,7 +16,7 @@ import bon.jo.datamodeler.util.Utils
 
 
 
-trait DaoImpl[E,ID](using Pool[java.sql.Connection], Sql[E] ) extends Dao[E,ID] with  RawDaoImpl[E]:
+trait DaoImpl[E,ID](using Pool[java.sql.Connection], Sql[E] ) extends Dao[E,ID] with  RawDaoImpl[E,IdCompiledFunction[E]]:
 
 
   extension (e : E)
@@ -105,34 +105,31 @@ trait DaoImpl[E,ID](using Pool[java.sql.Connection], Sql[E] ) extends Dao[E,ID] 
 end DaoImpl
 
 object DaoImpl:
-  inline def dao[E,ID](using DaoImpl[E,ID]) :DaoImpl[E,ID]= summon
+  inline def dao[E,ID](using  DaoImpl[E,ID]) : DaoImpl[E,ID]= summon
   object EntityMethods:
     extension[E,ID](e : E)(using DaoImpl[E,ID])
       inline def insert()  = dao.insert(e)
       inline def update()  = dao.update(e)
       inline def delete()  = dao.delete(e)
 
-    extension[E,ID](e : E)(using  IntDaoSync[E])
-      inline def save() : Int = summon[IntDaoSync[E]].save(e)
+    extension[E,ID](e : E)(using  Dao.Sync[E,ID])
+      inline def save() : Int = summon[Dao.Sync[E,ID]].save(e)
 
 
 
   object IntDaoSync :
-    inline def apply[E](inline fromIdF : (id : Int,e : E) => E)(using Pool[java.sql.Connection]  , Sql[E] ) :IntDaoSync[E] =
+    inline def apply[E]( fromIdF : (id : Int,e : E) => E)(using Pool[java.sql.Connection]  , Sql[E] ) :IntDaoSync[E] =
       new IntDaoSync[E](){
         val reqConstant: ReqConstant[E] = ReqConstant[E]()
-        val compiledFunction: CompiledFunction[E] = CompiledFunction()
+        val compiledFunction: IdCompiledFunction[E] = IdCompiledFunction()
         def fromId(id : Int,e : E) : E = fromIdF(id,e)
       }
 
 
-  trait IntDaoSync[E](using Pool[java.sql.Connection]  ,    Sql[E] ) extends DaoImpl[E,Int]:
-    override type W[A] = A
-
-    override inline def wFactory[A](a: A):  W[A] = a
-    inline def freeId = maxId + 1
-    def fromId(id : Int,e : E) : E 
-
+  trait IntDaoSync[E](using Pool[java.sql.Connection]  ,    Sql[E] ) extends  Dao.Sync[E,Int],DaoImpl[E,Int]:
+    def fromId(id : Int,e : E) : E
+    inline def freeId : Int = maxId + 1
+    def nextId(id : Int) : Int = id+1
     inline def save(e : E) : Int =
       insert(fromId(freeId,e))
     inline def saveAll(es : Iterable[E]) : Int =
@@ -140,10 +137,10 @@ object DaoImpl:
       insertAll(es.map{
         e =>
           val res = fromId(currId,e)
-          currId+=1
+          currId=nextId(currId)
           res
       })
 
-      
+
 end DaoImpl
   

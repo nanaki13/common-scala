@@ -10,11 +10,13 @@ import scala.concurrent.{ExecutionContext, Future}
 
 trait Dao[E,ID] extends RawDao[E]:
   type W[A]
-  inline def maxId :W[ID]
-  inline def update(id : ID,e: E) : W[Int]
-  inline def update(e: E) : W[Int]
-  inline def deleteById( e : ID) : W[Int]
-  inline def delete(e: E): W[Int]
+   inline def maxId :W[ID]
+   inline def update(id : ID,e: E) : W[Int]
+   inline def update(e: E) : W[Int]
+   inline def deleteById( e : ID) : W[Int]
+   inline def delete(e: E): W[Int]
+   inline def save(e : E) : W[Int]
+   inline def saveAll(es : Iterable[E]) : W[Int]
 
 
 object Dao :

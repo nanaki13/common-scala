@@ -7,9 +7,9 @@ import bon.jo.datamodeler.util.{Pool, Utils}
 
 import java.sql.ResultSet
 
-trait RawDaoImpl[E](using Pool[java.sql.Connection], Sql[E]) extends RawDao[E]:
+trait RawDaoImpl[E,CF <:CompiledFunction[E]](using Pool[java.sql.Connection], Sql[E]) extends RawDao[E]:
   val reqConstant: ReqConstant[E]
-  val compiledFunction: CompiledFunction[E]
+  val compiledFunction: CF
   extension (r: ResultSet)
     def iterator[A](read: ResultSet => A): Iterator[A] =
       new Iterator[A] {
@@ -111,7 +111,7 @@ trait RawDaoImpl[E](using Pool[java.sql.Connection], Sql[E]) extends RawDao[E]:
         GenMacro.fieldSelection(fk)._2,
         SqlMacro.uniqueIdString[B]
       )
-
+      println(join)
       def readResulsetJoin(resultSet: ResultSet): (E, B) =
         (
           l(compiledFunction.readResultSet(resultSet, 0)),
