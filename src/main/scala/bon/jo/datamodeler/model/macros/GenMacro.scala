@@ -4,8 +4,14 @@ import scala.annotation.tailrec
 import java.sql.ResultSet
 object GenMacro :
   def inspectCode(x: Expr[Any])(using Quotes): Expr[Any] =
-    Expr(x.show) 
+    Expr(x.show)
 
+  inline def log(inline x: Any): Unit =
+    println(debug(x))
+  def debugCode(x: Expr[Any])(using Quotes): Expr[Any] =
+   '{${ Expr(x.show)} + " = "+ ${x}}
+  inline def debug(inline x: Any): Any =
+    ${debugCode('x)}
   inline def countFields[T]: Int = ${ countFields[T]() }
 
   def countFields[T: Type]()(using Quotes): Expr[Int] =
@@ -13,7 +19,7 @@ object GenMacro :
     val tpe: TypeRepr = TypeRepr.of[T]
     Expr(tpe.typeSymbol.declaredFields.size)
 
-  inline def testConstructor[T] :T= ${ testConstructorCode[T] }
+  /*inline def testConstructor[T] :T= ${ testConstructorCode[T] }
 
   def testConstructorCode[T : Type ](using  Quotes) : Expr[T]= 
     import quotes.reflect.*
@@ -22,7 +28,7 @@ object GenMacro :
     val symbol = tpe.typeSymbol
     val construcot = symbol.primaryConstructor
     val x = Inlined(None, Nil, Apply(Select(New(TypeIdent(symbol)), construcot), List(Literal(IntConstant(0)), Literal(StringConstant("abc")), Literal(IntConstant(1)), Literal(StringConstant("email")))))  
-    x.asExprOf[T]
+    x.asExprOf[T]*/
 
 
   inline def printTree[T](inline x: T): Unit = ${printTreeImpl('x)}
@@ -31,12 +37,27 @@ object GenMacro :
     println(x.asTerm.show(using Printer.TreeStructure))
     println(x.asTerm)
     println(x.show)
+
+
     '{()}
 
 
   inline def fieldSelection[T](inline t : T => Any):(String,String) =
     ${fieldSelectionCode[T => Any]('t)}
-  def fieldSelectionCode[T : Type]( t : Expr[T])(using  Quotes):Expr[(String,String)] = Help().fieldSelectionCode(t)
+  def fieldSelectionCode[T : Type]( t : Expr[T])(using  Quotes):Expr[(String,String)] =
+    Help().fieldSelectionCode(t)
+
+  inline def listTo[T](inline t : Seq[Any]):T =
+      ${listToCode[T]('t)}
+
+  inline def listToFunction[T]:Seq[Any] => T =
+      ${listToFunctionCode[T]}
+
+  def listToCode[T : Type]( t : Expr[Seq[Any]])(using  Quotes):Expr[T] =
+    Help().listTo(t)
+
+  def listToFunctionCode[T : Type](using  Quotes):Expr[Seq[Any] =>T] =
+    '{t => ${Help().listTo('t)}}
   
 
 
@@ -44,13 +65,22 @@ object GenMacro :
 class Help[Q <: Quotes, T : Type]()(using val qq : Q) :
  
   import  qq.reflect.*
-  lazy val tpe = TypeRepr.of[T]
+  lazy val tpe : TypeRepr = TypeRepr.of[T]
   lazy val symbol = tpe.typeSymbol
   lazy val tr = TypeTree.of[T]
   lazy val constructor = symbol.primaryConstructor
   lazy val  name = symbol.name
 
   lazy val constructorParamLists: List[List[Symbol]] = constructor.paramSymss
+
+  def listTo[E : Type](t : Expr[Seq[Any]]) : Expr[E] =
+      val size = tpe.typeSymbol.declaredFields.size
+      val listSymbol = TypeRepr.of[scala.collection.SeqOps].typeSymbol
+      val applyMethod =listSymbol.declaredMethods.find(_.name == "apply")
+      val parms = for (i <- 0 until size)
+        yield(tp : TypeRepr) => TypeApply(Select.unique(Apply(Select(t.asTerm, applyMethod.get), List(Literal(IntConstant(i)))), "asInstanceOf"), List(Inferred(tp)))
+      val typed = (constructorParamLists(0).map(tpe.memberType(_)) zip parms) map ((tp,fTp) => fTp(tp))
+      Inlined(None, Nil, Apply(Select(New(TypeIdent(symbol)), constructor), typed)).asExprOf[E]
 
 
   def fieldSelectionCode[T : Type]( t : Expr[T]):Expr[(String,String)] =

@@ -6,7 +6,7 @@ import java.sql.PreparedStatement
 import java.sql.ResultSet
 import java.time.LocalDate
 import bon.jo.datamodeler.util.Utils.{/,writer,UsingSb}
-
+import bon.jo.datamodeler.model.macros.SqlMacroHelper
 import scala.collection.mutable.ListBuffer
 import java.time.LocalDateTime
 object SqlMacro:
@@ -54,6 +54,9 @@ object SqlMacro:
 
   inline def sqlTypesDef[T]:List[String] = 
     ${sqlTypesDefCode[T]}
+
+  def sqlTypesDefCode[T: Type](using  Quotes):Expr[List[String]] =
+    SqlMacroHelper().sqlTypesDefCode
   inline def uniqueIdValue[T,ID]:T => ID = uniqueIdValueAny[T].andThen(_.asInstanceOf[ID])
   inline def uniqueIdValueAny[T]:(e : T) => Any = ${uniqueIdValueCode[T]}
   def uniqueIdValueCode[T: Type](using  Quotes) :Expr[T => Any] = '{
@@ -76,33 +79,7 @@ object SqlMacro:
 
 
 
-  def sqlTypesDefCode[T : Type](using  Quotes):Expr[List[String]] =
-    import quotes.reflect.*
-    import bon.jo.datamodeler.model.sql.SimpleSql.id
-    val tpe: TypeRepr = TypeRepr.of[T]
-    val sbe: Symbol = TypeRepr.of[id].typeSymbol
-    val symbol = tpe.typeSymbol
-    val fields = symbol.caseFields
 
-
-   // val idFieldsSymbols = symbol.primaryConstructor.paramSymss.flatMap(_.filter(_.getAnnotation(sbe).nonEmpty))
-    val f = fields.map(f => 
-        given StringBuilder = StringBuilder()
-        val isId = SqlMacroHelper[Quotes,T]().idFieldsCode
-
-        /( s"${f.name}")
-        tpe.memberType(f).asType match 
-          case '[Int] =>  /(" INT")
-          case '[Long] =>  /(" BIGINT")
-          case '[String] =>  /(" VARCHAR(255)")
-          case '[Float] =>  /(" FLOAT")
-          case '[Double] =>  /(" DOUBLE")
-          case '[LocalDate] =>  /(" DATE")
-          case '[LocalDateTime] =>  /(" DATETIME")
-        if f.name == "id" then /(" PRIMARY KEY") 
-        writer.toString
-      )
-    Expr(f)
   
 
   inline def testCreateFunction[T]:T => String =

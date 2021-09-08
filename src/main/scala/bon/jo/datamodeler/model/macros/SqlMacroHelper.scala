@@ -1,7 +1,11 @@
 package bon.jo.datamodeler.model.macros
+
+import bon.jo.datamodeler.util.Utils.{/, writer}
+
 import scala.quoted.{Expr, Quotes, ToExpr, Type, quotes}
 import java.sql.PreparedStatement
 import java.sql.ResultSet
+import java.time.{LocalDate, LocalDateTime}
 class SqlMacroHelper[Q <: Quotes, T : Type]()(using val qq : Q) :
     import  qq.reflect.*
     
@@ -27,11 +31,11 @@ class SqlMacroHelper[Q <: Quotes, T : Type]()(using val qq : Q) :
 
     def uniqueIdValueCode[E,ID](e : Expr[E]):Expr[Any] =
       val idFieldName = uniqueId.name
-      println(idFieldName)
-      println(fields.find(_.name == idFieldName))
+
       fields.find(_.name == idFieldName).map(f => Select(e.asTerm, f).asExpr).get
 
 
+    //TODO Convert into E, see GenMacro.listToFunction
     def readResultBody(r : Expr[ResultSet],offset : Expr[Int]):Expr[Seq[Any]]=
         '{for (i : Int <- 1 to ${GenMacro.countFields()})
           yield ${r}.getObject(i + ${offset})
@@ -54,4 +58,38 @@ class SqlMacroHelper[Q <: Quotes, T : Type]()(using val qq : Q) :
         }
         ()  
        }
+
+    def sqlTypesDefCode:Expr[List[String]] =
+
+      import bon.jo.datamodeler.model.sql.SimpleSql.id
+      val tpe: TypeRepr = TypeRepr.of[T]
+      val sbe: Symbol = TypeRepr.of[id].typeSymbol
+      val symbol = tpe.typeSymbol
+      val fields = symbol.caseFields
+      val ids = idFieldsCode
+
+      val monoId  = ids.size == 1
+
+      // val idFieldsSymbols = symbol.primaryConstructor.paramSymss.flatMap(_.filter(_.getAnnotation(sbe).nonEmpty))
+      val f = fields.map(f =>
+        given StringBuilder = StringBuilder()
+
+   
+        /( s"${f.name}")
+        tpe.memberType(f).asType match
+          case '[Int] =>  /(" INT")
+          case '[Long] =>  /(" BIGINT")
+          case '[String] =>  /(" VARCHAR(255)")
+          case '[Float] =>  /(" FLOAT")
+          case '[Double] =>  /(" DOUBLE")
+          case '[LocalDate] =>  /(" DATE")
+          case '[LocalDateTime] =>  /(" DATETIME")
+        if monoId && ids.find(_.name == f.name).isDefined
+        then
+          /(" PRIMARY KEY")
+
+     
+        writer.toString
+      )
+      Expr(f)
    

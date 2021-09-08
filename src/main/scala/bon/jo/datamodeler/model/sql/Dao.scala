@@ -1,67 +1,146 @@
 package bon.jo.datamodeler.model.sql
 
-
-
+import bon.jo.datamodeler.util.ConnectionPool.*
+import bon.jo.datamodeler.util.Pool
+import bon.jo.datamodeler.model.sql.SimpleSql
+import bon.jo.datamodeler.model.sql.Sql
+import bon.jo.datamodeler.model.macros.{GenMacro, SqlMacro}
+import bon.jo.datamodeler.util.Utils.{-, /, UsingSb, writer}
+import bon.jo.datamodeler.util.Alias.given
+import java.sql.{Connection, PreparedStatement, ResultSet}
+import scala.util.Try
 import bon.jo.datamodeler.util.Utils
-import bon.jo.datamodeler.util.Utils.{/, writer}
 
-import scala.concurrent.{ExecutionContext, Future}
 
-trait Dao[E,ID]:
-  type W[A]
-  inline def max[T](inline fSel : E => T):W[T]
 
-  inline def maxId :W[ID]
 
-  inline def insert(e: E) :W[Int]
 
-  inline def insertAll(es: Iterable[E]) : W[Int]
 
-  inline def select(inline fSel : E => Any,value : Any)(using translate : Seq[Any] => E):W[Option[E]]
+trait Dao[E,ID](using Pool[java.sql.Connection], Sql[E] ) extends DaoOps[E,ID] with  RawDao[E,IdCompiledFunction[E]]:
 
-  inline def selectAll()(using translate : Seq[Any] => E):W[List[E]]
 
-  inline def deleteAll():W[Int]
+  extension (e : E)
+    inline def __id : Any = compiledFunction.getIdFunction(e)
 
-  inline def update(id : ID,e: E) : W[Int]
 
-  inline def update(e: E) : W[Int]
 
-  inline def delete( e : ID) : W[Int]
+  /* inline def max[T](inline fSel : E => T):T =
+    onStmt{
+      sqlImpl.max(fSel)
 
-  inline def delete( e : E,inline f : E => Any) : W[Int]
+      val resQ = SimpleSql.thisStmt.executeQuery(writer.toString)
+      resQ.next
+      val res = resQ.getObject(1)
+      res.asInstanceOf[T]
+    }*/
+  inline def update(e: E) : W[Int] =
+    wFactory {
+      onPreStmt(reqConstant.updateById) {
+        val nbCol = GenMacro.countFields[E]
+        fillInsert(e, SimpleSql.thisPreStmt)
+        SimpleSql.thisPreStmt.setObject(nbCol + 1, e.__id)
+        SimpleSql.thisPreStmt.executeUpdate
+      }
+    }
 
-  //inline def join[B](using )
 
-object Dao :
-  trait Sync[E,ID] extends Dao[E,ID]:
-    type W[A] = A
+  inline def delete(e: E) : W[Int] =
+    wFactory {
+      onPreStmt(reqConstant.deleteIdString) {
+        SimpleSql.thisPreStmt.setObject(1, e.__id)
+        SimpleSql.thisPreStmt.executeUpdate
+      }
+    }
 
-  trait Async[E,ID] extends Dao[E,ID]:
-    type W[A] = Future[A]
 
-  trait DelegateAsync[E,ID](using Sync[E,ID], ExecutionContext) extends Async[E,ID]:
-    inline def sync(using Sync[E,ID]) = summon
-    inline def max[T](inline fSel : E => T):W[T] = Future(sync.max[T](fSel))
+  inline def maxId : W[ID] =
+    wFactory {
+      onStmt {
+        sqlImpl.maxId
+
+        val resQ = SimpleSql.thisStmt.executeQuery(writer.toString)
+        resQ.next
+        val res = resQ.getObject(1)
+        res.asInstanceOf[ID]
+      }
+    }
+
+
+
+  inline def updateAll(es:  Iterable[E]) : W[Int] =
+    wFactory {
+      onPreStmt(reqConstant.updateById) {
+        val nbCol = GenMacro.countFields[E]
+        for (e <- es)
+          fillInsert(e, SimpleSql.thisPreStmt)
+          SimpleSql.thisPreStmt.setObject(nbCol + 1, e.__id)
+          SimpleSql.thisPreStmt.addBatch()
+        SimpleSql.thisPreStmt.executeBatch.sum
+      }
+    }
+
+
+  inline def update(id : ID,e: E) : W[Int] =
+    wFactory {
+      onPreStmt(reqConstant.updateById){
+        val nbCol = GenMacro.countFields[E]
+        fillInsert(e,SimpleSql.thisPreStmt)
+        SimpleSql.thisPreStmt.setObject(nbCol+1,id)
+        SimpleSql.thisPreStmt.executeUpdate
+      }
+    }
+
+
+  inline def deleteById( e : ID) : W[Int] =
+    wFactory{
+      onPreStmt(reqConstant.deleteIdString){
+        SimpleSql.thisPreStmt.setObject(1,e)
+        SimpleSql.thisPreStmt.executeUpdate()
+      }
+    }
+
+
+
+
+end Dao
+
+object Dao:
+  inline def dao[E,ID](using Dao[E,ID]) : Dao[E,ID]= summon
+  object EntityMethods:
+    extension[E,ID](e : E)(using Dao[E,ID])
+      inline def insert()  = dao.insert(e)
+      inline def update()  = dao.update(e)
+      inline def delete()  = dao.delete(e)
+
+    extension[E,ID](e : E)(using DaoOps.Sync[E,ID])
+      inline def save() : Int = summon[DaoOps.Sync[E,ID]].save(e)
+
+
+
+  object IntDaoSync :
+    inline def apply[E]( fromIdF : (id : Int,e : E) => E)(using Pool[java.sql.Connection]  , Sql[E] ) :IntDaoSync[E] =
+      new IntDaoSync[E](){
+        val reqConstant: ReqConstant[E] = ReqConstant[E]()
+        val compiledFunction: IdCompiledFunction[E] = IdCompiledFunction()
+        def fromId(id : Int,e : E) : E = fromIdF(id,e)
+      }
+
+
+  trait IntDaoSync[E](using Pool[java.sql.Connection]  ,    Sql[E] ) extends  DaoOps.Sync[E,Int],Dao[E,Int]:
+    def fromId(id : Int,e : E) : E
+    inline def freeId : Int = maxId + 1
+    def nextId(id : Int) : Int = id+1
+    inline def save(e : E) : Int =
+      insert(fromId(freeId,e))
+    inline def saveAll(es : Iterable[E]) : Int =
+      var currId = freeId
+      insertAll(es.map{
+        e =>
+          val res = fromId(currId,e)
+          currId=nextId(currId)
+          res
+      })
+
+
+end Dao
   
-    inline def maxId :W[ID] = Future(sync.maxId)
-  
-    inline def insert(e: E) :W[Int] = Future(sync.insert(e))
-  
-    inline def insertAll(es: Iterable[E]) : W[Int] = Future(sync.insertAll(es))
-  
-    inline def select(inline fSel : E => Any,value : Any)(using translate : Seq[Any] => E):W[Option[E]]
-  
-    inline def selectAll()(using translate : Seq[Any] => E):W[List[E]]
-  
-    inline def deleteAll():W[Int]
-  
-    inline def update(id : ID,e: E) : W[Int]
-  
-    inline def update(e: E) : W[Int]
-  
-    inline def delete( e : ID) : W[Int]
-  
-    inline def delete( e : E,inline f : E => Any) : W[Int]
-
-

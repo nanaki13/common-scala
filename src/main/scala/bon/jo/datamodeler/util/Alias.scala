@@ -5,6 +5,8 @@ import scala.annotation.tailrec
 object Alias {
 
   lazy val alias : Alias = Alias()
+  
+  given Alias = alias
 
   inline def nextAlias(using Alias) = summon[Alias].next()
 
