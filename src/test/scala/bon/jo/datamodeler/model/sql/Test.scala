@@ -15,11 +15,7 @@ import java.time.LocalDateTime
 class Test extends AnyFlatSpec with should.Matchers:
   "A dao" should "can save, update, delete ..." in {
 
-    given (Seq[Any] => User) = GenMacro.listToFunction[User]
-    given (Seq[Any] => Event) = raw =>  Event(raw(0).asInstanceOf ,LocalDateTime.parse(raw(1).toString))
-    given (Seq[Any] => Groupe) = GenMacro.listToFunction[Groupe]
-    given (Seq[Any] => UserRoom) = GenMacro.listToFunction[UserRoom]
-    given (Seq[Any] => Room) = GenMacro.listToFunction[Room]
+
 
     given StringBuilder = StringBuilder()
     given Pool[java.sql.Connection] = ConnectionPool(10)("jdbc:sqlite:sample.db","org.sqlite.JDBC")

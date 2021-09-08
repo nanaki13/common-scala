@@ -38,9 +38,7 @@ trait RawDao[E,CF <:CompiledFunction[E]](using Pool[java.sql.Connection], Sql[E]
       res.asInstanceOf[T]
     })
 
-  inline def select(inline fSel: E => Any, value: Any)(using
-      translate: Seq[Any] => E
-  ): W[Option[E]] =
+  inline def select(inline fSel: E => Any, value: Any): W[Option[E]] =
     wFactory {
       val selSql = Utils.stringBuilder {
         sqlImpl.selectMe
@@ -54,7 +52,7 @@ trait RawDao[E,CF <:CompiledFunction[E]](using Pool[java.sql.Connection], Sql[E]
         val res = SimpleSql.thisPreStmt.executeQuery()
         if (res.next()) then
 
-          Some((translate(compiledFunction.readResultSet(res, 0))))
+          Some((compiledFunction.readResultSet(res, 0)))
         else None
       }
     }
@@ -76,11 +74,11 @@ trait RawDao[E,CF <:CompiledFunction[E]](using Pool[java.sql.Connection], Sql[E]
       }
     }
 
-  inline def selectAll()(using translate: Seq[Any] => E): W[List[E]] =
+  inline def selectAll(): W[List[E]] =
     wFactory {
       onStmt {
         val res = SimpleSql.thisStmt.executeQuery(reqConstant.selectAllString)
-        res.iterator(r => translate(compiledFunction.readResultSet(r, 0))).toList
+        res.iterator(r => compiledFunction.readResultSet(r, 0)).toList
 
       }
     }
@@ -109,11 +107,10 @@ trait RawDao[E,CF <:CompiledFunction[E]](using Pool[java.sql.Connection], Sql[E]
 
   inline def join[B, IDB](
       inline fk: E => IDB
-  )(using DaoOps.Sync[B, IDB], Seq[Any] => E, Seq[Any] => B): W[List[(E, B)]] =
+  )(using DaoOps.Sync[B, IDB]): W[List[(E, B)]] =
     wFactory {
       val otherDao: DaoOps.Sync[B, IDB] = summon[DaoOps.Sync[B, IDB]]
-      val l: Seq[Any] => E = summon[Seq[Any] => E]
-      val r: Seq[Any] => B = summon[Seq[Any] => B]
+
       val join = ReqConstant.selectJoin(
         reqConstant,
         otherDao.reqConstant,
@@ -123,8 +120,8 @@ trait RawDao[E,CF <:CompiledFunction[E]](using Pool[java.sql.Connection], Sql[E]
 
       def readResulsetJoin(resultSet: ResultSet): (E, B) =
         (
-          l(compiledFunction.readResultSet(resultSet, 0)),
-          r(otherDao.compiledFunction.readResultSet(resultSet, reqConstant.columns.size))
+          compiledFunction.readResultSet(resultSet, 0),
+          otherDao.compiledFunction.readResultSet(resultSet, reqConstant.columns.size)
         )
 
       onStmt {

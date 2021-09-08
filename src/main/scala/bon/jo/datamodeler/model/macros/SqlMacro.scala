@@ -93,9 +93,15 @@ object SqlMacro:
   
   def readResultCode[T: Type](using  Quotes): Expr[(ResultSet,Int ) => Seq[Any]] =
       '{( r : ResultSet,offset : Int) => ${SqlMacroHelper().readResultBody('{r},'{offset})}}
+
+  def readResultCodeTo[T: Type](using  Quotes): Expr[(ResultSet,Int ) => T] =
+    '{( r : ResultSet,offset : Int) => ${SqlMacroHelper().readResultToBody('{r},'{offset})}}
   
   inline def readResultSet[T]:( r : ResultSet,offset : Int) => Seq[Any] =
     ${readResultCode[T]}
+
+  inline def readResultSetTo[T]:( r : ResultSet,offset : Int) => T =
+    ${readResultCodeTo[T]}
   
   
   
