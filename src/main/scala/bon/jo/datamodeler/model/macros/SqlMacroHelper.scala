@@ -13,6 +13,10 @@ class SqlMacroHelper[Q <: Quotes, T : Type]()(using val qq : Q) :
     lazy val symbol = tpe.typeSymbol
     lazy val tree = TypeTree.of[T]
     lazy val fields : List[qq.reflect.Symbol] = symbol.caseFields
+    lazy val constructor = symbol.primaryConstructor
+    lazy val  name = symbol.name
+
+    lazy val constructorParamLists: List[List[Symbol]] = constructor.paramSymss
     def idFieldsCode : List[qq.reflect.Symbol] =
       import bon.jo.datamodeler.model.sql.SimpleSql.id
       lazy val annoId: Symbol = TypeRepr.of[id].typeSymbol
@@ -40,6 +44,10 @@ class SqlMacroHelper[Q <: Quotes, T : Type]()(using val qq : Q) :
         '{for (i : Int <- 1 to ${GenMacro.countFields()})
           yield ${r}.getObject(i + ${offset})
         }
+
+    def readResultToBody(r : Expr[ResultSet],offset : Expr[Int]):Expr[T]=
+      GenMacro.listToCode(readResultBody(r ,offset ))
+
 
     def createFunctionBody[A](param: Expr[A]): Expr[String] = 
       
