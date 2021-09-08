@@ -46,14 +46,14 @@ class Test extends AnyFlatSpec with should.Matchers:
 
       val t = SimpleSql.stmt{
 
-        println( SimpleSql.dropTable[User])
-        println( SimpleSql.createTable[User])
-        println( SimpleSql.dropTable[Event])
-        println( SimpleSql.createTable[Event])
-        println( SimpleSql.dropTable[Room])
-        println( SimpleSql.createTable[Room])
-        println( SimpleSql.dropTable[UserRoom])
-        println( SimpleSql.createTable[UserRoom])
+        ( SimpleSql.dropTable[User])
+        ( SimpleSql.createTable[User])
+        ( SimpleSql.dropTable[Event])
+        ( SimpleSql.createTable[Event])
+        ( SimpleSql.dropTable[Room])
+        ( SimpleSql.createTable[Room])
+        ( SimpleSql.dropTable[UserRoom])
+        ( SimpleSql.createTable[UserRoom])
         SimpleSql.thisStmt.close
 
       }
