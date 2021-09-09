@@ -39,15 +39,33 @@ class SqlMacroHelper[Q <: Quotes, T : Type]()(using val qq : Q) :
       fields.find(_.name == idFieldName).map(f => Select(e.asTerm, f).asExpr).get
 
 
-    //TODO Convert into E, see GenMacro.listToFunction
     def readResultBody(r : Expr[ResultSet],offset : Expr[Int]):Expr[Seq[Any]]=
         '{for (i : Int <- 1 to ${GenMacro.countFields()})
           yield ${r}.getObject(i + ${offset})
         }
 
     def readResultToBody(r : Expr[ResultSet],offset : Expr[Int]):Expr[T]=
-      GenMacro.listToCode(readResultBody(r ,offset ))
+      GenMacro.listToCode(mapSqlJavaToJava(readResultBody(r ,offset )))
 
+    def mapSqlJavaToJava(seq : Expr[Seq[Any]]) : Expr[Seq[Any]] =
+      val mappinFunctio =  Expr.ofSeq(fields.map(tpe.memberType(_).asType).map(
+       (t) =>
+          t match
+          case '[LocalDateTime] =>
+            '{
+               (i: Int) =>
+                 $seq(i) match
+                  case a  : LocalDateTime => a
+                  case a  : Any  if a != null => LocalDateTime.parse(a.toString)
+                  case _ => null
+             }
+          case _ =>
+             '{ (i: Int) => ${seq}(i)}
+
+        ).toSeq)
+        '{
+            ($mappinFunctio.zipWithIndex).map (_(_))
+        }
 
     def createFunctionBody[A](param: Expr[A]): Expr[String] = 
       
