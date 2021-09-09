@@ -40,6 +40,7 @@ class Test extends AnyFlatSpec with should.Matchers:
     def t2 =
 
 
+
       val t = SimpleSql.stmt{
 
         ( SimpleSql.dropTable[User])
@@ -69,7 +70,7 @@ class Test extends AnyFlatSpec with should.Matchers:
       val u  = User( 1,"totototo","sdfsdf")
       daoUser.delete(u) should be (1)
       println("id clause : "+daoUser.delete(u,_.name))
-
+      val e = eventDao.select(_.id,1)
       var user  =  User( 1,"Jon","sdfsdf")
 
 
@@ -95,14 +96,6 @@ class Test extends AnyFlatSpec with should.Matchers:
       daoUser.update(user) should be (1)
       (daoUser.select(_.id,1)).get should be (user)
 
-
-     // println(daoUser.join[Groupe,Int](_.groupe))
-    //  println(eventDao.delete(daoUser.select(_.id,1)))
-
-
-
-
-    // fill(User("test",1,"sdfsdf"))
     end t2
 
     inline def now =  System.currentTimeMillis
