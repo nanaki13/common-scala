@@ -9,11 +9,15 @@ import java.sql.ResultSet
 
 
 object RawDao:
-  type Dao[A] = RawDao[A,CompiledFunction[A]]
-  inline def apply[E](using Pool[java.sql.Connection], Sql[E]): Dao[E] = new RawDao[E,CompiledFunction[E]]{
+  trait Sync[A]:
+    me  : RawDao[A,CompiledFunction[A]] =>
+    override type W[A] = A
+  type Dao[A] = RawDao[A,CompiledFunction[A]] with Sync[A]
+  inline def apply[E](using Pool[java.sql.Connection]): Dao[E] =
+    given Sql[E] = Sql()
+    new RawDao[E,CompiledFunction[E]] with Sync[E]{
     override val reqConstant: ReqConstant[E] = ReqConstant()
     override val compiledFunction: CompiledFunction[E] = CompiledFunction()
-    override type W[A] = A
     override def wFactory[A](a: A): A = a
   }
 trait RawDao[E,CF <:CompiledFunction[E]](using Pool[java.sql.Connection], Sql[E]) extends RawDaoOps[E]:
@@ -38,9 +42,7 @@ trait RawDao[E,CF <:CompiledFunction[E]](using Pool[java.sql.Connection], Sql[E]
       res.asInstanceOf[T]
     })
 
-  inline def select(inline fSel: E => Any, value: Any)(using
-      translate: Seq[Any] => E
-  ): W[Option[E]] =
+  inline def select(inline fSel: E => Any, value: Any): W[Option[E]] =
     wFactory {
       val selSql = Utils.stringBuilder {
         sqlImpl.selectMe
@@ -54,7 +56,7 @@ trait RawDao[E,CF <:CompiledFunction[E]](using Pool[java.sql.Connection], Sql[E]
         val res = SimpleSql.thisPreStmt.executeQuery()
         if (res.next()) then
 
-          Some((translate(compiledFunction.readResultSet(res, 0))))
+          Some((compiledFunction.readResultSet(res, 0)))
         else None
       }
     }
@@ -76,11 +78,11 @@ trait RawDao[E,CF <:CompiledFunction[E]](using Pool[java.sql.Connection], Sql[E]
       }
     }
 
-  inline def selectAll()(using translate: Seq[Any] => E): W[List[E]] =
+  inline def selectAll(): W[List[E]] =
     wFactory {
       onStmt {
         val res = SimpleSql.thisStmt.executeQuery(reqConstant.selectAllString)
-        res.iterator(r => translate(compiledFunction.readResultSet(r, 0))).toList
+        res.iterator(r => compiledFunction.readResultSet(r, 0)).toList
 
       }
     }
@@ -109,11 +111,10 @@ trait RawDao[E,CF <:CompiledFunction[E]](using Pool[java.sql.Connection], Sql[E]
 
   inline def join[B, IDB](
       inline fk: E => IDB
-  )(using DaoOps.Sync[B, IDB], Seq[Any] => E, Seq[Any] => B): W[List[(E, B)]] =
+  )(using DaoOps.Sync[B, IDB]): W[List[(E, B)]] =
     wFactory {
       val otherDao: DaoOps.Sync[B, IDB] = summon[DaoOps.Sync[B, IDB]]
-      val l: Seq[Any] => E = summon[Seq[Any] => E]
-      val r: Seq[Any] => B = summon[Seq[Any] => B]
+
       val join = ReqConstant.selectJoin(
         reqConstant,
         otherDao.reqConstant,
@@ -123,12 +124,40 @@ trait RawDao[E,CF <:CompiledFunction[E]](using Pool[java.sql.Connection], Sql[E]
 
       def readResulsetJoin(resultSet: ResultSet): (E, B) =
         (
-          l(compiledFunction.readResultSet(resultSet, 0)),
-          r(otherDao.compiledFunction.readResultSet(resultSet, reqConstant.columns.size))
+          compiledFunction.readResultSet(resultSet, 0),
+          otherDao.compiledFunction.readResultSet(resultSet, reqConstant.columns.size)
         )
 
       onStmt {
+        println(s"JOIN = $join")
         val res = SimpleSql.thisStmt.executeQuery(join)
+        res.iterator(readResulsetJoin).toList
+
+      }
+    }
+
+  inline def joinWhere[B, IDB](
+                           inline fk: E => IDB,id : IDB
+                         )(using DaoOps.Sync[B, IDB]): W[List[(E, B)]] =
+    wFactory {
+      val otherDao: DaoOps.Sync[B, IDB] = summon[DaoOps.Sync[B, IDB]]
+      val fs = GenMacro.fieldSelection(fk)._2
+      val join = ReqConstant.selectJoin(
+        reqConstant,
+        otherDao.reqConstant,
+        GenMacro.fieldSelection(fk)._2,
+        SqlMacro.uniqueIdString[B]
+      )+s" WHERE ${reqConstant.alias}.${GenMacro.fieldSelection(fk)._2} = ?"
+
+      def readResulsetJoin(resultSet: ResultSet): (E, B) =
+        (
+          compiledFunction.readResultSet(resultSet, 0),
+          otherDao.compiledFunction.readResultSet(resultSet, reqConstant.columns.size)
+        )
+      println(s"JOIN = $join")
+      onPreStmt(join) {
+        SimpleSql.thisPreStmt.setObject(1,id)
+        val res = SimpleSql.thisPreStmt.executeQuery()
         res.iterator(readResulsetJoin).toList
 
       }

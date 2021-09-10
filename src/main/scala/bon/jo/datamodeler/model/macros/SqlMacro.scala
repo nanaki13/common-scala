@@ -5,7 +5,7 @@ import scala.quoted.{Expr, Quotes, ToExpr, Type, quotes}
 import java.sql.PreparedStatement
 import java.sql.ResultSet
 import java.time.LocalDate
-import bon.jo.datamodeler.util.Utils.{/,writer,UsingSb}
+import bon.jo.datamodeler.util.Utils.{/, writer, UsingSb}
 import bon.jo.datamodeler.model.macros.SqlMacroHelper
 import scala.collection.mutable.ListBuffer
 import java.time.LocalDateTime
@@ -13,20 +13,18 @@ object SqlMacro:
 
   case class Table(name: String)
 
-  
   inline def columnsName[T]: String = ${ columnsNameCode[T]() }
   inline def columnsNameList[T]: List[String] = ${ columnsNameListCode[T]() }
   inline def tableName[T]: Table = ${ tableNameCode[T]() }
   inline def where[T](inline f: T => Any): String = ${ whereCode[T]('f) }
-
-
+  inline def sqlTypesDef[T]: List[String] = ${ sqlTypesDefCode[T] }
 
   given ToExpr[Table] with {
     def apply(x: Table)(using Quotes): Expr[Table] = '{ Table(${ Expr(x.name) }) }
 
   }
   given ToExpr[Unit] with {
-    def apply(x: Unit)(using Quotes): Expr[Unit] = '{  }
+    def apply(x: Unit)(using Quotes): Expr[Unit] = '{}
   }
 
   def tableNameCode[T: Type]()(using Quotes): Expr[Table] =
@@ -45,66 +43,72 @@ object SqlMacro:
     val l: List[Symbol] = tpe.typeSymbol.declaredFields
     Expr(l.map(_.name).mkString(","))
 
-
   def columnsNameListCode[T: Type]()(using Quotes): Expr[List[String]] =
     import quotes.reflect.*
     val tpe: TypeRepr = TypeRepr.of[T]
     val l: List[Symbol] = tpe.typeSymbol.declaredFields
     Expr(l.map(_.name))
 
-  inline def sqlTypesDef[T]:List[String] = 
-    ${sqlTypesDefCode[T]}
-
-  def sqlTypesDefCode[T: Type](using  Quotes):Expr[List[String]] =
+  def sqlTypesDefCode[T: Type](using Quotes): Expr[List[String]] =
     SqlMacroHelper().sqlTypesDefCode
-  inline def uniqueIdValue[T,ID]:T => ID = uniqueIdValueAny[T].andThen(_.asInstanceOf[ID])
-  inline def uniqueIdValueAny[T]:(e : T) => Any = ${uniqueIdValueCode[T]}
-  def uniqueIdValueCode[T: Type](using  Quotes) :Expr[T => Any] = '{
-    (t : T) =>  ${SqlMacroHelper().uniqueIdValueCode('t)}
+  inline def uniqueIdValue[T, ID]: T => ID = uniqueIdValueAny[T].andThen(_.asInstanceOf[ID])
+  inline def uniqueIdValueAny[T]: (e: T) => Any = ${ uniqueIdValueCode[T] }
+  def uniqueIdValueCode[T: Type](using Quotes): Expr[T => Any] = '{ (t: T) =>
+    ${ SqlMacroHelper().uniqueIdValueCode('t) }
   }
-  def uniqueIdStringCode[T: Type](using  Quotes):Expr[String] = 
+  def uniqueIdStringCode[T: Type](using Quotes): Expr[String] =
     SqlMacroHelper().uniqueIdString
 
-    
-  inline def uniqueIdString[T]:String = 
-    ${uniqueIdStringCode[T]}
-  inline def idsString[T]:List[String] = 
-    ${idStringCode[T]}
+  inline def uniqueIdString[T]: String =
+    ${ uniqueIdStringCode[T] }
+  inline def idsString[T]: List[String] =
+    ${ idStringCode[T] }
 
-  def idStringCode[T: Type](using  Quotes):Expr[List[String]] = 
+  def idStringCode[T: Type](using Quotes): Expr[List[String]] =
     SqlMacroHelper().idString
 
-  
+  inline def testCreateFunction[T]: T => String =
+    ${ createFunction[T] }
+  def createFunction[A: Type](using Quotes): Expr[A => String] =
+    '{ (a: A) => ${ SqlMacroHelper().createFunctionBody('{ a }) } }
+  inline def fillInsert[T]: (T, PreparedStatement) => Unit =
+    ${ fillInsertCode[T] }
+  def fillInsertCode[A: Type](using Quotes): Expr[(A, PreparedStatement) => Unit] =
+    '{ (a: A, p: PreparedStatement) => ${ SqlMacroHelper().fillInsertBody('{ a }, '{ p }) } }
 
+  def readResultCode[T: Type](using Quotes): Expr[(ResultSet, Int) => Seq[Any]] =
+    '{ (r: ResultSet, offset: Int) => ${ SqlMacroHelper().readResultBody('{ r }, '{ offset }) } }
 
+  def readResultCodeTo[T: Type](using Quotes): Expr[(ResultSet, Int) => T] =
+    '{ (r: ResultSet, offset: Int) => ${ SqlMacroHelper().readResultToBody('{ r }, '{ offset }) } }
 
+  inline def readResultSet[T]: (r: ResultSet, offset: Int) => Seq[Any] =
+    ${ readResultCode[T] }
 
+  inline def readResultSetTo[T]: (r: ResultSet, offset: Int) => T =
+    ${ readResultCodeTo[T] }
 
-  
+  inline def fillPreparedStatmentWithId[T]: (T, Offset, PreparedStatement) => Unit =
+    ${ fillPreparedStatmentWithIdCode[T] }
+  type Offset = Int
+  def fillPreparedStatmentWithIdCode[T: Type](using
+      Quotes
+  ): Expr[(T, Offset, PreparedStatement) => Unit] =
 
-  inline def testCreateFunction[T]:T => String =
-      ${createFunction[T]}
-  def createFunction[A: Type](using  Quotes): Expr[A => String] =
-      '{(a: A) => ${SqlMacroHelper().createFunctionBody('{a})}}
-  inline def fillInsert[T]:(T,PreparedStatement) => Unit =
-      ${fillInsertCode[T]}
-  def fillInsertCode[A: Type](using  Quotes): Expr[(A,PreparedStatement) => Unit] =
-      '{(a: A,p : PreparedStatement) => ${SqlMacroHelper().fillInsertBody('{a},'{p})}}
-  
-  def readResultCode[T: Type](using  Quotes): Expr[(ResultSet,Int ) => Seq[Any]] =
-      '{( r : ResultSet,offset : Int) => ${SqlMacroHelper().readResultBody('{r},'{offset})}}
-  
-  inline def readResultSet[T]:( r : ResultSet,offset : Int) => Seq[Any] =
-    ${readResultCode[T]}
-  
-  
-  
+    val idSize = SqlMacroHelper().idFieldsCode.size
 
+    if (idSize == 1) then
+      '{ (a: T, offset: Offset, p: PreparedStatement) =>
+        ${ SqlMacroHelper().fillPreparedStatmentWithId('{ a }, '{ offset }, '{ p }) }
+      }
+    else if (idSize > 1) then
+      '{ (a: T, offset: Offset, p: PreparedStatement) =>
+        ${ SqlMacroHelper().fillPreparedStatmentWithUniqueId('{ a }, '{ offset }, '{ p }) }
+      }
+    else
+      '{
+        val table = ${ tableNameCode() }
+        throw SqlMacroEx(s"no id in $table")
+      }
 
-
-
-
-
-
-
-
+  class SqlMacroEx(val message: String) extends Exception

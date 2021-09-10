@@ -73,12 +73,14 @@ class Help[Q <: Quotes, T : Type]()(using val qq : Q) :
 
   lazy val constructorParamLists: List[List[Symbol]] = constructor.paramSymss
 
-  def listTo[E : Type](t : Expr[Seq[Any]]) : Expr[E] =
+  def listTo[E : Type](listExp : Expr[Seq[Any]]) : Expr[E] =
       val size = tpe.typeSymbol.declaredFields.size
       val listSymbol = TypeRepr.of[scala.collection.SeqOps].typeSymbol
       val applyMethod =listSymbol.declaredMethods.find(_.name == "apply")
+      val typeParmes = constructorParamLists(0).map(tpe.memberType(_))
+
       val parms = for (i <- 0 until size)
-        yield(tp : TypeRepr) => TypeApply(Select.unique(Apply(Select(t.asTerm, applyMethod.get), List(Literal(IntConstant(i)))), "asInstanceOf"), List(Inferred(tp)))
+        yield(tp : TypeRepr) => TypeApply(Select.unique(Apply(Select(listExp.asTerm, applyMethod.get), List(Literal(IntConstant(i)))), "asInstanceOf"), List(Inferred(tp)))
       val typed = (constructorParamLists(0).map(tpe.memberType(_)) zip parms) map ((tp,fTp) => fTp(tp))
       Inlined(None, Nil, Apply(Select(New(TypeIdent(symbol)), constructor), typed)).asExprOf[E]
 

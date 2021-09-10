@@ -13,6 +13,12 @@ class SqlMacroHelper[Q <: Quotes, T : Type]()(using val qq : Q) :
     lazy val symbol = tpe.typeSymbol
     lazy val tree = TypeTree.of[T]
     lazy val fields : List[qq.reflect.Symbol] = symbol.caseFields
+    lazy val constructor = symbol.primaryConstructor
+    lazy val  name = symbol.name
+
+    lazy val constructorParamLists: List[List[Symbol]] = constructor.paramSymss
+
+
     def idFieldsCode : List[qq.reflect.Symbol] =
       import bon.jo.datamodeler.model.sql.SimpleSql.id
       lazy val annoId: Symbol = TypeRepr.of[id].typeSymbol
@@ -31,14 +37,39 @@ class SqlMacroHelper[Q <: Quotes, T : Type]()(using val qq : Q) :
 
     def uniqueIdValueCode[E,ID](e : Expr[E]):Expr[Any] =
       val idFieldName = uniqueId.name
-
       fields.find(_.name == idFieldName).map(f => Select(e.asTerm, f).asExpr).get
 
+    def idsValueCode[E,ID](e : Expr[E]):Expr[List[Any]] =
+      val idFieldName = idFieldsCode.map(_.name)
+      Expr.ofList(fields.filter(field => idFieldName.contains(field.name)).map(f => Select(e.asTerm, f).asExpr))
 
-    //TODO Convert into E, see GenMacro.listToFunction
+
     def readResultBody(r : Expr[ResultSet],offset : Expr[Int]):Expr[Seq[Any]]=
         '{for (i : Int <- 1 to ${GenMacro.countFields()})
           yield ${r}.getObject(i + ${offset})
+        }
+
+    def readResultToBody(r : Expr[ResultSet],offset : Expr[Int]):Expr[T]=
+      GenMacro.listToCode(mapSqlJavaToJava(readResultBody(r ,offset )))
+
+    def mapSqlJavaToJava(seq : Expr[Seq[Any]]) : Expr[Seq[Any]] =
+      val mappinFunctio =  Expr.ofSeq(fields.map(tpe.memberType(_).asType).map(
+       (t) =>
+          t match
+          case '[LocalDateTime] =>
+            '{
+               (i: Int) =>
+                 $seq(i) match
+                  case a  : LocalDateTime => a
+                  case a  : Any  if a != null => LocalDateTime.parse(a.toString)
+                  case _ => null
+             }
+          case _ =>
+             '{ (i: Int) => ${seq}(i)}
+
+        ).toSeq)
+        '{
+            ($mappinFunctio.zipWithIndex).map (_(_))
         }
 
     def createFunctionBody[A](param: Expr[A]): Expr[String] = 
@@ -58,6 +89,19 @@ class SqlMacroHelper[Q <: Quotes, T : Type]()(using val qq : Q) :
         }
         ()  
        }
+
+    def fillPreparedStatmentWithUniqueId[T: Type](value : Expr[T],osffset : Expr[Int],stmt : Expr[PreparedStatement])(using  Quotes): Expr[Unit] =
+      '{
+      $stmt.setObject($osffset,${uniqueIdValueCode(value)})
+      ()
+      }
+    def fillPreparedStatmentWithId[T: Type](value : Expr[T],osffset : Expr[Int],stmt : Expr[PreparedStatement])(using  Quotes): Expr[Unit] =
+      '{
+        ${idsValueCode(value)}.zipWithIndex.foreach{
+          (v ,i ) => $stmt.setObject(i+$osffset,v)
+        }
+        ()
+      }
 
     def sqlTypesDefCode:Expr[List[String]] =
 

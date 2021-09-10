@@ -38,7 +38,7 @@ trait Dao[E,ID](using Pool[java.sql.Connection], Sql[E] ) extends DaoOps[E,ID] w
       onPreStmt(reqConstant.updateById) {
         val nbCol = GenMacro.countFields[E]
         fillInsert(e, SimpleSql.thisPreStmt)
-        SimpleSql.thisPreStmt.setObject(nbCol + 1, e.__id)
+        compiledFunction.fillPreparedStatmentWithId(e,nbCol + 1,SimpleSql.thisPreStmt)
         SimpleSql.thisPreStmt.executeUpdate
       }
     }
@@ -47,7 +47,7 @@ trait Dao[E,ID](using Pool[java.sql.Connection], Sql[E] ) extends DaoOps[E,ID] w
   inline def delete(e: E) : W[Int] =
     wFactory {
       onPreStmt(reqConstant.deleteIdString) {
-        SimpleSql.thisPreStmt.setObject(1, e.__id)
+        compiledFunction.fillPreparedStatmentWithId(e,1,SimpleSql.thisPreStmt)
         SimpleSql.thisPreStmt.executeUpdate
       }
     }
@@ -73,7 +73,7 @@ trait Dao[E,ID](using Pool[java.sql.Connection], Sql[E] ) extends DaoOps[E,ID] w
         val nbCol = GenMacro.countFields[E]
         for (e <- es)
           fillInsert(e, SimpleSql.thisPreStmt)
-          SimpleSql.thisPreStmt.setObject(nbCol + 1, e.__id)
+          compiledFunction.fillPreparedStatmentWithId(e,1,SimpleSql.thisPreStmt)
           SimpleSql.thisPreStmt.addBatch()
         SimpleSql.thisPreStmt.executeBatch.sum
       }
@@ -85,6 +85,7 @@ trait Dao[E,ID](using Pool[java.sql.Connection], Sql[E] ) extends DaoOps[E,ID] w
       onPreStmt(reqConstant.updateById){
         val nbCol = GenMacro.countFields[E]
         fillInsert(e,SimpleSql.thisPreStmt)
+
         SimpleSql.thisPreStmt.setObject(nbCol+1,id)
         SimpleSql.thisPreStmt.executeUpdate
       }
@@ -94,6 +95,7 @@ trait Dao[E,ID](using Pool[java.sql.Connection], Sql[E] ) extends DaoOps[E,ID] w
   inline def deleteById( e : ID) : W[Int] =
     wFactory{
       onPreStmt(reqConstant.deleteIdString){
+
         SimpleSql.thisPreStmt.setObject(1,e)
         SimpleSql.thisPreStmt.executeUpdate()
       }
@@ -118,7 +120,8 @@ object Dao:
 
 
   object IntDaoSync :
-    inline def apply[E]( fromIdF : (id : Int,e : E) => E)(using Pool[java.sql.Connection]  , Sql[E] ) :IntDaoSync[E] =
+    inline def apply[E]( fromIdF : (id : Int,e : E) => E)(using Pool[java.sql.Connection]  ) :IntDaoSync[E] =
+      given Sql[E] = Sql()
       new IntDaoSync[E](){
         val reqConstant: ReqConstant[E] = ReqConstant[E]()
         val compiledFunction: IdCompiledFunction[E] = IdCompiledFunction()
