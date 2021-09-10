@@ -9,11 +9,15 @@ import java.sql.ResultSet
 
 
 object RawDao:
-  type Dao[A] = RawDao[A,CompiledFunction[A]]
-  inline def apply[E](using Pool[java.sql.Connection], Sql[E]): Dao[E] = new RawDao[E,CompiledFunction[E]]{
+  trait Sync[A]:
+    me  : RawDao[A,CompiledFunction[A]] =>
+    override type W[A] = A
+  type Dao[A] = RawDao[A,CompiledFunction[A]] with Sync[A]
+  inline def apply[E](using Pool[java.sql.Connection]): Dao[E] =
+    given Sql[E] = Sql()
+    new RawDao[E,CompiledFunction[E]] with Sync[E]{
     override val reqConstant: ReqConstant[E] = ReqConstant()
     override val compiledFunction: CompiledFunction[E] = CompiledFunction()
-    override type W[A] = A
     override def wFactory[A](a: A): A = a
   }
 trait RawDao[E,CF <:CompiledFunction[E]](using Pool[java.sql.Connection], Sql[E]) extends RawDaoOps[E]:
@@ -125,7 +129,35 @@ trait RawDao[E,CF <:CompiledFunction[E]](using Pool[java.sql.Connection], Sql[E]
         )
 
       onStmt {
+        println(s"JOIN = $join")
         val res = SimpleSql.thisStmt.executeQuery(join)
+        res.iterator(readResulsetJoin).toList
+
+      }
+    }
+
+  inline def joinWhere[B, IDB](
+                           inline fk: E => IDB,id : IDB
+                         )(using DaoOps.Sync[B, IDB]): W[List[(E, B)]] =
+    wFactory {
+      val otherDao: DaoOps.Sync[B, IDB] = summon[DaoOps.Sync[B, IDB]]
+      val fs = GenMacro.fieldSelection(fk)._2
+      val join = ReqConstant.selectJoin(
+        reqConstant,
+        otherDao.reqConstant,
+        GenMacro.fieldSelection(fk)._2,
+        SqlMacro.uniqueIdString[B]
+      )+s" WHERE ${reqConstant.alias}.${GenMacro.fieldSelection(fk)._2} = ?"
+
+      def readResulsetJoin(resultSet: ResultSet): (E, B) =
+        (
+          compiledFunction.readResultSet(resultSet, 0),
+          otherDao.compiledFunction.readResultSet(resultSet, reqConstant.columns.size)
+        )
+      println(s"JOIN = $join")
+      onPreStmt(join) {
+        SimpleSql.thisPreStmt.setObject(1,id)
+        val res = SimpleSql.thisPreStmt.executeQuery()
         res.iterator(readResulsetJoin).toList
 
       }

@@ -17,6 +17,8 @@ class SqlMacroHelper[Q <: Quotes, T : Type]()(using val qq : Q) :
     lazy val  name = symbol.name
 
     lazy val constructorParamLists: List[List[Symbol]] = constructor.paramSymss
+
+
     def idFieldsCode : List[qq.reflect.Symbol] =
       import bon.jo.datamodeler.model.sql.SimpleSql.id
       lazy val annoId: Symbol = TypeRepr.of[id].typeSymbol
@@ -35,8 +37,11 @@ class SqlMacroHelper[Q <: Quotes, T : Type]()(using val qq : Q) :
 
     def uniqueIdValueCode[E,ID](e : Expr[E]):Expr[Any] =
       val idFieldName = uniqueId.name
-
       fields.find(_.name == idFieldName).map(f => Select(e.asTerm, f).asExpr).get
+
+    def idsValueCode[E,ID](e : Expr[E]):Expr[List[Any]] =
+      val idFieldName = idFieldsCode.map(_.name)
+      Expr.ofList(fields.filter(field => idFieldName.contains(field.name)).map(f => Select(e.asTerm, f).asExpr))
 
 
     def readResultBody(r : Expr[ResultSet],offset : Expr[Int]):Expr[Seq[Any]]=
@@ -84,6 +89,19 @@ class SqlMacroHelper[Q <: Quotes, T : Type]()(using val qq : Q) :
         }
         ()  
        }
+
+    def fillPreparedStatmentWithUniqueId[T: Type](value : Expr[T],osffset : Expr[Int],stmt : Expr[PreparedStatement])(using  Quotes): Expr[Unit] =
+      '{
+      $stmt.setObject($osffset,${uniqueIdValueCode(value)})
+      ()
+      }
+    def fillPreparedStatmentWithId[T: Type](value : Expr[T],osffset : Expr[Int],stmt : Expr[PreparedStatement])(using  Quotes): Expr[Unit] =
+      '{
+        ${idsValueCode(value)}.zipWithIndex.foreach{
+          (v ,i ) => $stmt.setObject(i+$osffset,v)
+        }
+        ()
+      }
 
     def sqlTypesDefCode:Expr[List[String]] =
 

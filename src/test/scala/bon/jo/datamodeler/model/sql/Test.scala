@@ -19,19 +19,14 @@ class Test extends AnyFlatSpec with should.Matchers:
 
     given StringBuilder = StringBuilder()
     given Pool[java.sql.Connection] = ConnectionPool(10)("jdbc:sqlite:sample.db","org.sqlite.JDBC")
-    given Sql[Event] = Sql()
-    given Sql[User] = Sql()
-    given Sql[Room] = Sql()
-    given Sql[Groupe] = Sql()
-    given Sql[UserRoom] = Sql()
+
     given daoRoom :  Dao.IntDaoSync[Room] = Dao.IntDaoSync[Room]((id, e ) => e.copy(id = id) )
     given daoUser : Dao.IntDaoSync[User] = Dao.IntDaoSync[User]((id, e ) => e.copy(id = id) )
     given eventDao : Dao.IntDaoSync[Event] = Dao.IntDaoSync[Event]((id, e ) => e.copy(id = id) )
     given groupDao : Dao.IntDaoSync[Groupe] = Dao.IntDaoSync[Groupe]((id, e ) => e.copy(id = id) )
 
     val linkDao : RawDao.Dao[UserRoom] = RawDao[UserRoom]
-    //  SimpleSql.
- //   given userRoom : DaoSync.IntDaoSync[UserRoom] = DaoSync.IntDaoSync.apply[UserRoom]((id,e ) => e.copy(id = id) )
+
     import bon.jo.datamodeler.util.ConnectionPool.*
 
     given  Connection =  pool.get
@@ -76,16 +71,34 @@ class Test extends AnyFlatSpec with should.Matchers:
 
       {
         import Dao.EntityMethods.*
+        import bon.jo.datamodeler.model.Model.toRoom
         user.save() should be (1)
 
 
         user.save() should be (1)
-        for(i <- 1 to 10)
-          var room  =  Room( i,"r")
-          val userRoom = UserRoom(user.id,room.id)
-          room.insert() should be (1)
-          linkDao.insert(userRoom)
-        println(linkDao.join[Room,Int](_.idRoom))
+        var room  =  Room( 1,"r1")
+        var room2  =  Room( 2,"r2")
+        room.save()
+        room2.save()
+        daoUser.deleteAll()
+        val users  = for(i <- 1 to 10) yield {
+          val userLoop = User(i,s"${i}")
+          userLoop.insert() should be (1)
+          linkDao.insert(userLoop.toRoom(room))
+          userLoop
+        }
+
+
+
+        for(u <- users)
+          val userLoop  = u.copy(id = u.id+15)
+          userLoop.insert() should be (1)
+          linkDao.insert(userLoop.toRoom(room2)) should be (1)
+
+        println("linDao et room : "+linkDao.join[Room,Int](_.idRoom))
+        println("linDao et room : "+linkDao.joinWhere[Room,Int](_.idRoom,1))
+        val l : List[(UserRoom,Room)] = linkDao.joinWhere[Room,Int](_.idRoom,1)
+        l.map
       }
 
 
