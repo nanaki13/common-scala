@@ -107,22 +107,26 @@ trait Dao[E,ID](using Pool[java.sql.Connection], Sql[E] ) extends DaoOps[E,ID] w
 end Dao
 
 object Dao:
-  inline def dao[E,ID](using Dao[E,ID]) : Dao[E,ID]= summon
+  inline def dao[E](using RawDao.Dao[E]) : RawDao.Dao[E]= summon
   object EntityMethods:
-    extension[E,ID](e : E)(using Dao[E,ID])
-      inline def insert()  = dao.insert(e)
-      inline def update()  = dao.update(e)
-      inline def delete()  = dao.delete(e)
+    extension[E](e : E)(using RawDao.Dao[E])
+      inline def insertRaw()  = dao.insert(e)
 
-    extension[E,ID](e : E)(using DaoOps.Sync[E,ID])
-      inline def save() : Int = summon[DaoOps.Sync[E,ID]].save(e)
+  object IntEntityMethods:
+    extension[E](e : E)(using IntDaoSync[E])
+      inline def insert()  = IntDaoSync.dao.insert(e)
+      inline def update()  = IntDaoSync.dao.update(e)
+      inline def delete()  = IntDaoSync.dao.delete(e)
+      inline def save()  = IntDaoSync.dao.save(e)
+
 
 
 
   object IntDaoSync :
+    inline def dao[E](using IntDaoSync[E]) : IntDaoSync[E]= summon
     inline def apply[E]( fromIdF : (id : Int,e : E) => E)(using Pool[java.sql.Connection]  ) :IntDaoSync[E] =
       given Sql[E] = Sql()
-      new IntDaoSync[E](){
+      new {
         val reqConstant: ReqConstant[E] = ReqConstant[E]()
         val compiledFunction: IdCompiledFunction[E] = IdCompiledFunction()
         def fromId(id : Int,e : E) : E = fromIdF(id,e)
@@ -133,8 +137,10 @@ object Dao:
     def fromId(id : Int,e : E) : E
     inline def freeId : Int = maxId + 1
     def nextId(id : Int) : Int = id+1
-    inline def save(e : E) : Int =
-      insert(fromId(freeId,e))
+    inline def save(e : E) : E =
+      val s = fromId(freeId,e)
+      insert(s)
+      s
     inline def saveAll(es : Iterable[E]) : Int =
       var currId = freeId
       insertAll(es.map{
@@ -143,6 +149,7 @@ object Dao:
           currId=nextId(currId)
           res
       })
+
 
 
 end Dao

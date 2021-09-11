@@ -162,3 +162,30 @@ trait RawDao[E,CF <:CompiledFunction[E]](using Pool[java.sql.Connection], Sql[E]
 
       }
     }
+
+  inline def joinWhereCustom[B, IDB](
+                                inline fk: E => IDB,inline field: E => Any,fieldValue : Any
+                              )(using DaoOps.Sync[B, IDB]): W[List[(E, B)]] =
+    wFactory {
+      val otherDao: DaoOps.Sync[B, IDB] = summon[DaoOps.Sync[B, IDB]]
+      val fs = GenMacro.fieldSelection(fk)._2
+      val join = ReqConstant.selectJoin(
+        reqConstant,
+        otherDao.reqConstant,
+        GenMacro.fieldSelection(fk)._2,
+        SqlMacro.uniqueIdString[B]
+      )+s" WHERE ${reqConstant.alias}.${GenMacro.fieldSelection(field)._2} = ?"
+
+      def readResulsetJoin(resultSet: ResultSet): (E, B) =
+        (
+          compiledFunction.readResultSet(resultSet, 0),
+          otherDao.compiledFunction.readResultSet(resultSet, reqConstant.columns.size)
+        )
+      println(s"JOIN = $join")
+      onPreStmt(join) {
+        SimpleSql.thisPreStmt.setObject(1,fieldValue)
+        val res = SimpleSql.thisPreStmt.executeQuery()
+        res.iterator(readResulsetJoin).toList
+
+      }
+    }

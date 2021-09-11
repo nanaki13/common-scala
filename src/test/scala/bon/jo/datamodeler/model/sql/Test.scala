@@ -70,12 +70,10 @@ class Test extends AnyFlatSpec with should.Matchers:
 
 
       {
-        import Dao.EntityMethods.*
+        import Dao.IntEntityMethods.*
         import bon.jo.datamodeler.model.Model.toRoom
-        user.save() should be (1)
+        user = user.save()
 
-
-        user.save() should be (1)
         var room  =  Room( 1,"r1")
         var room2  =  Room( 2,"r2")
         room.save()

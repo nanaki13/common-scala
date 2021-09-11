@@ -1,18 +1,27 @@
-# common-scala [![Scala CI](https://github.com/nanaki13/common-scala/actions/workflows/scala.yml/badge.svg)](https://github.com/nanaki13/common-scala/actions/workflows/scala.yml)
+package bon.jo.datamodeler.model.sql
 
-## sql
-Create dao over java.sql.Connection.
+import bon.jo.datamodeler.model.Model.{Event, Groupe, Message, Room, RoomMessage, User, UserRoom, UserUserMessage}
+import bon.jo.datamodeler.model.macros.GenMacro
+import bon.jo.datamodeler.model.sql.Dao
+import bon.jo.datamodeler.service.Service
+import bon.jo.datamodeler.util.{ConnectionPool, Pool}
+import org.scalatest.*
+import org.scalatest.flatspec.*
+import org.scalatest.matchers.*
 
-#### Example : 
-```scala
-given Pool[java.sql.Connection] = ConnectionPool(10)("jdbc:sqlite:sample.db","org.sqlite.JDBC")
-given Dao.IntDaoSync[Room] = Dao.IntDaoSync[Room]((id, e ) => e.copy(id = id) )
-given Dao.IntDaoSync[User] = Dao.IntDaoSync[User]((id, e ) => e.copy(id = id) )
-given Dao.IntDaoSync[Message] = Dao.IntDaoSync[Message]((id, e ) => e.copy(id = id) )
-given RawDao.Dao[RoomMessage] = RawDao[RoomMessage]
-given RawDao.Dao[UserUserMessage] = RawDao[UserUserMessage]
-import bon.jo.datamodeler.util.ConnectionPool.*
-"A user" should "can send message" in {
+import java.sql.Connection
+import java.time.LocalDateTime
+
+class TestMessage extends AnyFlatSpec with should.Matchers:
+
+  given Pool[java.sql.Connection] = ConnectionPool(10)("jdbc:sqlite:sample.db","org.sqlite.JDBC")
+  given Dao.IntDaoSync[Room] = Dao.IntDaoSync[Room]((id, e ) => e.copy(id = id) )
+  given Dao.IntDaoSync[User] = Dao.IntDaoSync[User]((id, e ) => e.copy(id = id) )
+  given Dao.IntDaoSync[Message] = Dao.IntDaoSync[Message]((id, e ) => e.copy(id = id) )
+  given RawDao.Dao[RoomMessage] = RawDao[RoomMessage]
+  given RawDao.Dao[UserUserMessage] = RawDao[UserUserMessage]
+  import bon.jo.datamodeler.util.ConnectionPool.*
+  "A user" should "can send message" in {
 
 
 
@@ -69,5 +78,6 @@ import bon.jo.datamodeler.util.ConnectionPool.*
 
     finally
       pool.closeAll()
-}
-```
+  }
+
+
