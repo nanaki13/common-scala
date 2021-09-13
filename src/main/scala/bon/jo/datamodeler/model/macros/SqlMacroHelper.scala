@@ -1,8 +1,9 @@
 package bon.jo.datamodeler.model.macros
 
+import bon.jo.datamodeler.model.sql.SimpleSql.id
 import bon.jo.datamodeler.util.Utils.{/, writer}
 
-import scala.quoted.{Expr, Quotes, ToExpr, Type, quotes}
+import scala.quoted.{Expr, FromExpr, Quotes, ToExpr, Type, quotes}
 import java.sql.PreparedStatement
 import java.sql.ResultSet
 import java.time.{LocalDate, LocalDateTime}
@@ -19,6 +20,26 @@ class SqlMacroHelper[Q <: Quotes, T : Type]()(using val qq : Q) :
     lazy val constructorParamLists: List[List[Symbol]] = constructor.paramSymss
 
 
+
+    def idFieldsAndAiPropCode : List[(qq.reflect.Symbol,Boolean)] =
+      import bon.jo.datamodeler.model.sql.SimpleSql.id
+      lazy val annoId: Symbol = TypeRepr.of[id].typeSymbol
+      val fAndIdAno  = symbol.primaryConstructor.paramSymss.flatMap(_.map(f => (f,f.getAnnotation(annoId)))).filter(_._2.nonEmpty).map((f,a)=>(f,a.get))
+      val hardIdDafaultAiTrue  = symbol.primaryConstructor.paramSymss.flatMap(_.filter( s => s.name == "id" && fAndIdAno.find(_._1.name == s.name).isEmpty)).map(f => (f,true))
+      val sizeId = fAndIdAno.size + hardIdDafaultAiTrue.size
+
+      val fAndAiProp = fAndIdAno.map{(f,a)=>
+        //println(a.show)
+        val ai = a match {
+          case Apply(Select(_,_),List(NamedArg("autoIncrement",Literal(BooleanConstant(false))))) => false
+          case _ => sizeId == 1
+        }
+
+
+        (f,ai)
+      }
+      println(fAndAiProp)
+      fAndAiProp ++ hardIdDafaultAiTrue
     def idFieldsCode : List[qq.reflect.Symbol] =
       import bon.jo.datamodeler.model.sql.SimpleSql.id
       lazy val annoId: Symbol = TypeRepr.of[id].typeSymbol
@@ -79,6 +100,7 @@ class SqlMacroHelper[Q <: Quotes, T : Type]()(using val qq : Q) :
       '{
         ${l}.mkString(",")
        }
+    //TODO split insert/update. handle autoinc in update
     def fillInsertBody[A](param: Expr[A],stmt: Expr[PreparedStatement]): Expr[Unit] = 
       
       val accessors : List[Expr[_]] = fields.map(f => Select(param.asTerm, f).asExpr)
@@ -110,9 +132,10 @@ class SqlMacroHelper[Q <: Quotes, T : Type]()(using val qq : Q) :
       val sbe: Symbol = TypeRepr.of[id].typeSymbol
       val symbol = tpe.typeSymbol
       val fields = symbol.caseFields
-      val ids = idFieldsCode
+      val ids = idFieldsAndAiPropCode
 
       val monoId  = ids.size == 1
+      def isAi(name : String) = ids.find(_._1.name == name).map(_._2) == Some(true)
 
       // val idFieldsSymbols = symbol.primaryConstructor.paramSymss.flatMap(_.filter(_.getAnnotation(sbe).nonEmpty))
       val f = fields.map(f =>
@@ -120,17 +143,21 @@ class SqlMacroHelper[Q <: Quotes, T : Type]()(using val qq : Q) :
 
    
         /( s"${f.name}")
+        //TODO inject dbType
         tpe.memberType(f).asType match
-          case '[Int] =>  /(" INT")
+          case '[Int] =>  /(" INTEGER")
           case '[Long] =>  /(" BIGINT")
           case '[String] =>  /(" VARCHAR(255)")
           case '[Float] =>  /(" FLOAT")
           case '[Double] =>  /(" DOUBLE")
           case '[LocalDate] =>  /(" DATE")
           case '[LocalDateTime] =>  /(" DATETIME")
-        if monoId && ids.find(_.name == f.name).isDefined
+        if monoId && ids.find(_._1.name == f.name).isDefined
         then
           /(" PRIMARY KEY")
+          println( isAi(f.name))
+          if isAi(f.name)
+          then /(" AUTOINCREMENT ")
 
      
         writer.toString

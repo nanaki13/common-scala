@@ -49,6 +49,7 @@ class Test extends AnyFlatSpec with should.Matchers:
         SimpleSql.thisStmt.close
 
       }
+      pool.release
 
 
       println(daoUser.select(_.id,1))
@@ -117,6 +118,7 @@ class Test extends AnyFlatSpec with should.Matchers:
       println(now - t)
       println(daoUser.selectAll().size)
     finally
+
       pool.closeAll()
   }
 

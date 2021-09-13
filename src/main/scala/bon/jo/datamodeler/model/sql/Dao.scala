@@ -23,7 +23,16 @@ trait Dao[E,ID](using Pool[java.sql.Connection], Sql[E] ) extends DaoOps[E,ID] w
     inline def __id : Any = compiledFunction.getIdFunction(e)
 
 
-
+  override inline def selectById(id: ID): W[Option[E]] =
+    wFactory{
+      onPreStmt(reqConstant.selectById){
+        val resultSet : ResultSet = SimpleSql.doQuery()
+        if resultSet.next() then
+          Some(compiledFunction.readResultSet(resultSet,1))
+        else
+          None
+      }
+    }
   /* inline def max[T](inline fSel : E => T):T =
     onStmt{
       sqlImpl.max(fSel)
@@ -92,6 +101,7 @@ trait Dao[E,ID](using Pool[java.sql.Connection], Sql[E] ) extends DaoOps[E,ID] w
     }
 
 
+
   inline def deleteById( e : ID) : W[Int] =
     wFactory{
       onPreStmt(reqConstant.deleteIdString){
@@ -135,19 +145,25 @@ object Dao:
 
   trait IntDaoSync[E](using Pool[java.sql.Connection]  ,    Sql[E] ) extends  DaoOps.Sync[E,Int],Dao[E,Int]:
     def fromId(id : Int,e : E) : E
+    val reqConstant: ReqConstant[E]
     inline def freeId : Int = maxId + 1
     def nextId(id : Int) : Int = id+1
     inline def save(e : E) : E =
-      val s = fromId(freeId,e)
-      insert(s)
-      s
+      val c = pool.get
+      
+      onPreStmt(reqConstant.insertString) {
+        fillInsert(e, SimpleSql.thisPreStmt)
+        val pre : PreparedStatement = SimpleSql.thisPreStmt
+        SimpleSql.thisPreStmt.executeUpdate
+        fromId(maxId,e)
+      }
     inline def saveAll(es : Iterable[E]) : Int =
       var currId = freeId
-      insertAll(es.map{
+        insertAll(es.map{
         e =>
-          val res = fromId(currId,e)
-          currId=nextId(currId)
-          res
+        val res = fromId(currId,e)
+        currId=nextId(currId)
+        res
       })
 
 
