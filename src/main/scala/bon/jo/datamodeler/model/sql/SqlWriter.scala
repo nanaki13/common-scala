@@ -53,14 +53,14 @@ object SqlWriter:
 
   inline def value[T]: UsingSb[Unit] =
     /(" VALUES (")
-    /("?," * (GenMacro.countFields[T] - 1))
+    /("?," * (SqlMacro.columnsCountInsert[T] - 1))
     /('?' )
     /(')')
   inline def insert[T]: UsingSb[Unit] =
     /("INSERT INTO ")
     /(SqlMacro.tableName[T].name)
     /('(')
-    /(SqlMacro.columnsName[T])
+    /(SqlMacro.columnsNameInsert[T])
     /(')')
 
   inline def update[T]: UsingSb[Unit] =

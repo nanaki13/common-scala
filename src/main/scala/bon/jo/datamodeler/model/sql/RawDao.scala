@@ -5,7 +5,7 @@ import bon.jo.datamodeler.util.ConnectionPool.{onPreStmt, onStmt}
 import bon.jo.datamodeler.util.Utils.{/, writer}
 import bon.jo.datamodeler.util.{Pool, Utils}
 
-import java.sql.ResultSet
+import java.sql.{PreparedStatement, ResultSet}
 
 
 object RawDao:
@@ -65,11 +65,14 @@ trait RawDao[E,CF <:CompiledFunction[E]](using Pool[java.sql.Connection], Sql[E]
   inline def insert(e: E): W[Int] =
     wFactory(onPreStmt(reqConstant.insertString) {
       fillInsert(e, SimpleSql.thisPreStmt)
+      val pre : PreparedStatement = SimpleSql.thisPreStmt
+      
       SimpleSql.thisPreStmt.executeUpdate
     })
 
   inline def insertAll(es: Iterable[E]): W[Int] =
     wFactory {
+      GenMacro.log(reqConstant.insertString)
       onPreStmt(reqConstant.insertString) {
         for (e <- es)
           fillInsert(e, SimpleSql.thisPreStmt)

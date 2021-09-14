@@ -9,10 +9,12 @@ import bon.jo.datamodeler.util.Utils.{-, /, writer}
 case class ReqConstant[E](
     insertString: String,
     whereIdString: String,
+
     selectAllString: String,
     deleteIdString: String,
     deleteString: String,
     updateString: String,
+  
     columns: List[String],
     alias : String,table : String):
   val updateById = updateString + whereIdString
@@ -69,6 +71,8 @@ object ReqConstant:
       sqlImpl.delete
     }
 
+
+
   inline def updateString[E]: Str[E] =
     Utils.stringBuilder {
       sqlImpl.update
@@ -86,6 +90,7 @@ object ReqConstant:
       deleteIdString,
       deleteString,
       updateString,
+      
       columns,
       Alias.nextAlias,
       SqlMacro.tableName[E].name

@@ -1,16 +1,21 @@
 package bon.jo.datamodeler.util
 
+import bon.jo.datamodeler.util.Pool.State
+
 import scala.concurrent.Future
 import concurrent.ExecutionContext.Implicits.global
 trait Pool[T] {
   def get:T
   def release(using r : T) : Unit
   def toAll(f : T => Unit) : Unit
+  def state : State
+  inline def printSate = println(s"pool : ${state}")
   //def clear: Unit
   
 }
 
 object Pool:
+  case class State(in : Int, out : Int)
   inline def fromPool[T](using  T) : T = summon
   def apply[T](max : Int,pv : ()=>T) : Pool[T] =
     PoolImpl[T](pv,max)
@@ -18,9 +23,19 @@ object Pool:
   class PoolImpl[T](pvd : () => T,
                     max : Int,
                     var out : Int = 0,val data : Res[T]=Res[T](Nil),val all : Res[T]=Res[T](Nil)) extends Pool[T]:
+
+    def state : State = State(data.datas.size : Int, out)
+
     def get : T =
 
-       data.synchronized{
+      data.synchronized{
+        if !data.datas.isEmpty
+        then
+          val res = data.datas.head
+          data.datas = data.datas.tail
+          out+=1
+          res
+        else
           if data.datas.size + out < max then
             if data.datas.size < max then
               val n = pvd()
@@ -30,21 +45,18 @@ object Pool:
             data.datas = data.datas.tail
             out+=1
             res
-          else if !data.datas.isEmpty then
-            val res = data.datas.head
-            data.datas = data.datas.tail
-            out+=1
-            res
           else
             data.wait()
             get
         }
 
-    def toAll(f : T => Unit) = all.datas.foreach(f)         
+    def toAll(f : T => Unit) =
+      all.datas.foreach(f)
     def release(using r : T) : Unit =
       data.synchronized{
       data.datas = data.datas :+ r
       out-=1
+
       data.notify()
       }
 

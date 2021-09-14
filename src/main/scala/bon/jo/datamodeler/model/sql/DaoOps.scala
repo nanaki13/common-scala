@@ -16,7 +16,9 @@ trait DaoOps[E,ID] extends RawDaoOps[E]:
    inline def deleteById( e : ID) : W[Int]
    inline def delete(e: E): W[Int]
    inline def save(e : E) : W[E]
-   inline def saveAll(es : Iterable[E]) : W[Int]
+   inline def saveAll(es : Iterable[E]) : W[Iterable[E]]
+   inline def selectById(id : ID) : W[Option[E]]
+
 
 
 object DaoOps :

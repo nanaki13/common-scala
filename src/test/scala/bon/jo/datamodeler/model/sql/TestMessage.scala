@@ -8,9 +8,12 @@ import bon.jo.datamodeler.util.{ConnectionPool, Pool}
 import org.scalatest.*
 import org.scalatest.flatspec.*
 import org.scalatest.matchers.*
+import scala.concurrent.ExecutionContext.Implicits.global
 
 import java.sql.Connection
 import java.time.LocalDateTime
+import scala.concurrent.duration.Duration
+import scala.concurrent.{Await, Future}
 
 class TestMessage extends AnyFlatSpec with should.Matchers:
 
@@ -21,13 +24,13 @@ class TestMessage extends AnyFlatSpec with should.Matchers:
   given RawDao.Dao[RoomMessage] = RawDao[RoomMessage]
   given RawDao.Dao[UserUserMessage] = RawDao[UserUserMessage]
   import bon.jo.datamodeler.util.ConnectionPool.*
-  "A user" should "can send message" in {
+  "A user" should " send message" in {
 
 
 
     given  Connection =  pool.get
 
-    SimpleSql.stmt{
+    ConnectionPool.onStmt{
 
       ( SimpleSql.dropTable[Room])
       ( SimpleSql.createTable[Room])
@@ -40,9 +43,8 @@ class TestMessage extends AnyFlatSpec with should.Matchers:
       ( SimpleSql.dropTable[UserUserMessage])
       ( SimpleSql.createTable[UserUserMessage])
 
-      SimpleSql.thisStmt.close
-
     }
+
     def test =
 
 
@@ -58,11 +60,23 @@ class TestMessage extends AnyFlatSpec with should.Matchers:
       println(u1)
       println(u2)
 
-      for(_ <- 1 to 4)
+      def lcnh = for(_ <- 1 to 100)
+       // pool.printSate
         u1.sendToUser(Message(content = "salut u2"),2)
         u2.send(Message(content = "meci u1"),u1)
-      println(u2.readMessages())
-      println(u1.readMessages())
+        //pool.printSate
+
+      val f1 = Future{
+        lcnh
+      }
+      val f2 = Future{
+        lcnh
+      }
+      val f = Future.sequence(Seq(f1,f2))
+      Await.result(f,Duration.Inf)
+      u2.readMessages()
+      u1.readMessages()
+      pool.printSate
 
 
 

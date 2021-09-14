@@ -1,14 +1,15 @@
 package bon.jo.datamodeler.model.sql
 
-import java.sql.{Connection, DriverManager, Statement}
+import java.sql.{Connection, DriverManager, PreparedStatement, ResultSet, Statement}
 import scala.reflect.ClassTag
-import java.sql.PreparedStatement
 import bon.jo.datamodeler.model.macros.{GenMacro, SqlMacro}
 
-import scala.annotation.tailrec
-import scala.annotation.StaticAnnotation
+import scala.annotation.{Annotation, StaticAnnotation, tailrec}
 import bon.jo.datamodeler.model.Model.User
 object SimpleSql {
+  
+  
+  def doQuery() : SP[ResultSet] = thisPreStmt.executeQuery()
 
   //Class.forName("org.sqlite.JDBC")
   def connect[A](string: String = "jdbc:sqlite:sample.db")(trt :C[A]) : A =
@@ -62,7 +63,7 @@ object SimpleSql {
     val columns: List[String] = rep.productElementNames.toList
     val reader: (A, Int) => Any = (a,i)=> a.productElement(i)
     val table: String = table_
-  final class id extends StaticAnnotation
+  case class id(val autoIncrement : Boolean = true) extends Annotation
 
   inline def dropTable[T]:S[Unit] = 
     val tableName = SqlMacro.tableName[T]
