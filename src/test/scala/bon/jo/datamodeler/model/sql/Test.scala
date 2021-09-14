@@ -60,8 +60,8 @@ class Test extends AnyFlatSpec with should.Matchers:
       eventDao.insertAll(evs) should be (evs.size)
       println("id 2 : ")
       println(daoUser.select(_.id,2))
-      daoUser.saveAll(users) should be (users.size)
-      eventDao.saveAll(evs) should be (evs.size)
+      daoUser.saveAll(users)
+      eventDao.saveAll(evs)
 
       val u  = User( 1,"totototo","sdfsdf")
       daoUser.delete(u) should be (1)
