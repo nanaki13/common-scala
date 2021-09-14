@@ -24,7 +24,7 @@ class TestMessage extends AnyFlatSpec with should.Matchers:
   given RawDao.Dao[RoomMessage] = RawDao[RoomMessage]
   given RawDao.Dao[UserUserMessage] = RawDao[UserUserMessage]
   import bon.jo.datamodeler.util.ConnectionPool.*
-  "A user" should "can send message" in {
+  "A user" should " send message" in {
 
 
 
@@ -61,8 +61,10 @@ class TestMessage extends AnyFlatSpec with should.Matchers:
       println(u2)
 
       def lcnh = for(_ <- 1 to 100)
+       // pool.printSate
         u1.sendToUser(Message(content = "salut u2"),2)
         u2.send(Message(content = "meci u1"),u1)
+        //pool.printSate
 
       val f1 = Future{
         lcnh
@@ -74,6 +76,7 @@ class TestMessage extends AnyFlatSpec with should.Matchers:
       Await.result(f,Duration.Inf)
       u2.readMessages()
       u1.readMessages()
+      pool.printSate
 
 
 

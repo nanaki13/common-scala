@@ -44,9 +44,11 @@ trait Dao[E,ID](using Pool[java.sql.Connection], Sql[E] ) extends DaoOps[E,ID] w
     }*/
   inline def update(e: E) : W[Int] =
     wFactory {
+      println(e)
+      println(reqConstant.updateById)
       onPreStmt(reqConstant.updateById) {
         val nbCol = GenMacro.countFields[E]
-        fillInsert(e, SimpleSql.thisPreStmt)
+        compiledFunction.fillUpdate(e, SimpleSql.thisPreStmt)
         compiledFunction.fillPreparedStatmentWithId(e,nbCol + 1,SimpleSql.thisPreStmt)
         SimpleSql.thisPreStmt.executeUpdate
       }
@@ -81,7 +83,7 @@ trait Dao[E,ID](using Pool[java.sql.Connection], Sql[E] ) extends DaoOps[E,ID] w
       onPreStmt(reqConstant.updateById) {
         val nbCol = GenMacro.countFields[E]
         for (e <- es)
-          fillInsert(e, SimpleSql.thisPreStmt)
+          compiledFunction.fillUpdate(e, SimpleSql.thisPreStmt)
           compiledFunction.fillPreparedStatmentWithId(e,1,SimpleSql.thisPreStmt)
           SimpleSql.thisPreStmt.addBatch()
         SimpleSql.thisPreStmt.executeBatch.sum
@@ -149,22 +151,14 @@ object Dao:
     inline def freeId : Int = maxId + 1
     def nextId(id : Int) : Int = id+1
     inline def save(e : E) : E =
-      val c = pool.get
-      
       onPreStmt(reqConstant.insertString) {
         fillInsert(e, SimpleSql.thisPreStmt)
         val pre : PreparedStatement = SimpleSql.thisPreStmt
         SimpleSql.thisPreStmt.executeUpdate
         fromId(maxId,e)
       }
-    inline def saveAll(es : Iterable[E]) : Int =
-      var currId = freeId
-        insertAll(es.map{
-        e =>
-        val res = fromId(currId,e)
-        currId=nextId(currId)
-        res
-      })
+    inline def saveAll(es : Iterable[E]) : Iterable[E] =
+      es.map(save(_))
 
 
 

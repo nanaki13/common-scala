@@ -18,7 +18,7 @@ class SqlMacroHelper[Q <: Quotes, T : Type]()(using val qq : Q) :
     lazy val  name = symbol.name
 
     lazy val constructorParamLists: List[List[Symbol]] = constructor.paramSymss
-
+    lazy val aiPk = idFieldsAndAiPropCode.filter(_._2 == true).map(_._1)
 
 
     def idFieldsAndAiPropCode : List[(qq.reflect.Symbol,Boolean)] =
@@ -93,17 +93,35 @@ class SqlMacroHelper[Q <: Quotes, T : Type]()(using val qq : Q) :
             ($mappinFunctio.zipWithIndex).map (_(_))
         }
 
-    def createFunctionBody[A](param: Expr[A]): Expr[String] = 
+    def columnsNameCodeInsert[A] : Expr[String]=
+      Expr{if isMonoIdAi then
+        fields.filter(_.name != aiPk.head.name).map(_.name).mkString(",")
+      else
+        fields.map(_.name).mkString(",")}
+
+    def columnsCountInsert[A] : Expr[Int] =
+      Expr{if isMonoIdAi then
+        fields.filter(_.name != aiPk.head.name).size
+      else
+        fields.size}
+    def createFunctionBody[A](param: Expr[A]): Expr[String] =
       
       val accessors : List[Expr[_]] = fields.flatMap(f => List(Expr(f.name),Select(param.asTerm, f).asExpr))
       val l = Expr.ofList(accessors)
       '{
         ${l}.mkString(",")
        }
-    //TODO split insert/update. handle autoinc in update
-    def fillInsertBody[A](param: Expr[A],stmt: Expr[PreparedStatement]): Expr[Unit] = 
-      
-      val accessors : List[Expr[_]] = fields.map(f => Select(param.asTerm, f).asExpr)
+    def isMonoIdAiExpr[A] : Expr[Boolean] =
+      Expr(aiPk.size == 1)
+    def isMonoIdAi[A] : Boolean =
+      aiPk.size == 1
+
+
+    def fillInsertBody[A](param: Expr[A],stmt: Expr[PreparedStatement]): Expr[Unit] =
+      val accessors = if isMonoIdAi then
+         fields.filter(_.name != aiPk.head.name).map(f => Select(param.asTerm, f).asExpr)
+      else
+         fields.map(f => Select(param.asTerm, f).asExpr)
       val l = Expr.ofList(accessors)
       '{
         ${l}.zipWithIndex.map{ (e,i) =>
@@ -111,6 +129,17 @@ class SqlMacroHelper[Q <: Quotes, T : Type]()(using val qq : Q) :
         }
         ()  
        }
+    def fillUpdateBody[A](param: Expr[A],stmt: Expr[PreparedStatement]): Expr[Unit] =
+
+      val accessors : List[Expr[_]] = fields.map(f => Select(param.asTerm, f).asExpr)
+      val l = Expr.ofList(accessors)
+      '{
+      ${l}.zipWithIndex.map{ (e,i) =>
+        ${stmt}.setObject(i+1,e)
+      }
+      ()
+      }
+
 
     def fillPreparedStatmentWithUniqueId[T: Type](value : Expr[T],osffset : Expr[Int],stmt : Expr[PreparedStatement])(using  Quotes): Expr[Unit] =
       '{

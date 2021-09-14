@@ -13,7 +13,9 @@ object SqlMacro:
 
   case class Table(name: String)
 
+  inline def columnsCountInsert[T] : Int = ${ columnsCountInsert[T]() }
   inline def columnsName[T]: String = ${ columnsNameCode[T]() }
+  inline def columnsNameInsert[T]: String = ${ columnsNameInsert[T]() }
   inline def columnsNameList[T]: List[String] = ${ columnsNameListCode[T]() }
   inline def tableName[T]: Table = ${ tableNameCode[T]() }
   inline def where[T](inline f: T => Any): String = ${ whereCode[T]('f) }
@@ -43,6 +45,10 @@ object SqlMacro:
     val l: List[Symbol] = tpe.typeSymbol.declaredFields
     Expr(l.map(_.name).mkString(","))
 
+  def columnsNameInsert[T: Type]()(using Quotes): Expr[String] =
+    SqlMacroHelper().columnsNameCodeInsert
+  def columnsCountInsert[T: Type]()(using Quotes): Expr[Int] =
+    SqlMacroHelper().columnsCountInsert
   def columnsNameListCode[T: Type]()(using Quotes): Expr[List[String]] =
     import quotes.reflect.*
     val tpe: TypeRepr = TypeRepr.of[T]
@@ -71,10 +77,20 @@ object SqlMacro:
     ${ createFunction[T] }
   def createFunction[A: Type](using Quotes): Expr[A => String] =
     '{ (a: A) => ${ SqlMacroHelper().createFunctionBody('{ a }) } }
+
+  inline def isMonoIdAi[T]: Boolean =
+    ${ isMonoIdAi[T] }
+  def isMonoIdAi[T](using Quotes): Expr[Boolean] =
+    SqlMacroHelper().isMonoIdAiExpr
   inline def fillInsert[T]: (T, PreparedStatement) => Unit =
     ${ fillInsertCode[T] }
   def fillInsertCode[A: Type](using Quotes): Expr[(A, PreparedStatement) => Unit] =
     '{ (a: A, p: PreparedStatement) => ${ SqlMacroHelper().fillInsertBody('{ a }, '{ p }) } }
+
+  inline def fillUpdate[T]: (T, PreparedStatement) => Unit =
+    ${ fillUpdateCode[T] }
+  def fillUpdateCode[A: Type](using Quotes): Expr[(A, PreparedStatement) => Unit] =
+    '{ (a: A, p: PreparedStatement) => ${ SqlMacroHelper().fillUpdateBody('{ a }, '{ p }) } }
 
   def readResultCode[T: Type](using Quotes): Expr[(ResultSet, Int) => Seq[Any]] =
     '{ (r: ResultSet, offset: Int) => ${ SqlMacroHelper().readResultBody('{ r }, '{ offset }) } }

@@ -72,6 +72,7 @@ trait RawDao[E,CF <:CompiledFunction[E]](using Pool[java.sql.Connection], Sql[E]
 
   inline def insertAll(es: Iterable[E]): W[Int] =
     wFactory {
+      GenMacro.log(reqConstant.insertString)
       onPreStmt(reqConstant.insertString) {
         for (e <- es)
           fillInsert(e, SimpleSql.thisPreStmt)

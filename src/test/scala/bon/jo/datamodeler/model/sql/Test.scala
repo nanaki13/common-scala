@@ -13,7 +13,7 @@ import java.sql.Connection
 import java.time.LocalDateTime
 
 class Test extends AnyFlatSpec with should.Matchers:
-  "A dao" should "can save, update, delete ..." in {
+  "A dao" can " save, update, delete ..." in {
 
 
 
@@ -102,11 +102,11 @@ class Test extends AnyFlatSpec with should.Matchers:
 
 
 
-
+      user = daoUser.save(user)
       user = user.copy(name = "Bill")
 
       daoUser.update(user) should be (1)
-      (daoUser.select(_.id,1)).get should be (user)
+      (daoUser.select(_.id,user.id)).get should be (user)
 
     end t2
 

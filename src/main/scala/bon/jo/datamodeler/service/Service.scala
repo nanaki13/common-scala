@@ -17,6 +17,7 @@ trait Service(using d1 : IntDaoSync[Message], d2 :  RawDao.Dao[UserUserMessage],
   extension (u : User)
     inline def sendToUser( m : Message, de : Int):Message =
       val mSave = m.save()
+      //println(mSave)
       mSave.toUser(de).insertRaw()
       mSave
     inline def send( m : Message, de : User):Message =

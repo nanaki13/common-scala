@@ -68,10 +68,7 @@ object ReqConstant:
 
   inline def deleteString[E]: Str[E] =
     Utils.stringBuilder {
-      sqlImpl.selectMe
-      sqlImpl.from
-      /(s" ORDER BY ${SqlMacro.idsString.mkString(",")} DESC")
-      writer.toString
+      sqlImpl.delete
     }
 
 

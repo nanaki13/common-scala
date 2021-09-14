@@ -1,11 +1,15 @@
 package bon.jo.datamodeler.util
 
+import bon.jo.datamodeler.util.Pool.State
+
 import scala.concurrent.Future
 import concurrent.ExecutionContext.Implicits.global
 trait Pool[T] {
   def get:T
   def release(using r : T) : Unit
   def toAll(f : T => Unit) : Unit
+  def state : State
+  inline def printSate = println(s"pool : ${state}")
   //def clear: Unit
   
 }
@@ -21,7 +25,7 @@ object Pool:
                     var out : Int = 0,val data : Res[T]=Res[T](Nil),val all : Res[T]=Res[T](Nil)) extends Pool[T]:
 
     def state : State = State(data.datas.size : Int, out)
-    inline def printSate = println(s"pool : ${state}")
+
     def get : T =
 
       data.synchronized{
