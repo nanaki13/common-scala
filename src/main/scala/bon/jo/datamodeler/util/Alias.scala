@@ -23,7 +23,7 @@ object Alias {
 
 
   def next(int: Int):String = next(int)(Nil).mkString
-  @main def testAlis() = (0 to 100).map(next).foreach(println)
+
 }
 
 class Alias:
