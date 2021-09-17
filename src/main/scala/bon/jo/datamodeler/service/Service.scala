@@ -1,19 +1,19 @@
 package bon.jo.datamodeler.service
 
 import bon.jo.datamodeler.model.Model.{Message, Room, RoomMessage, User, UserUserMessage}
-import bon.jo.datamodeler.model.sql.Dao.IntDaoSync
-import bon.jo.datamodeler.model.sql.Dao.IntDaoSync.dao
+import bon.jo.datamodeler.model.sql.DaoInline.IntDaoSyncInline
+import bon.jo.datamodeler.model.sql.DaoInline.IntDaoSyncInline.dao
 import bon.jo.datamodeler.model.Model.to
 import bon.jo.datamodeler.model.Model
-import bon.jo.datamodeler.model.sql.Dao.IntEntityMethods.*
-import bon.jo.datamodeler.model.sql.Dao.EntityMethods.*
-import bon.jo.datamodeler.model.sql.RawDao
+import bon.jo.datamodeler.model.sql.DaoInline.IntEntityMethods.*
+import bon.jo.datamodeler.model.sql.DaoInline.EntityMethods.*
+import bon.jo.datamodeler.model.sql.RawDaoInline
 object Service {
-  def apply()(using d1 : IntDaoSync[Message], d2 :  RawDao.Dao[UserUserMessage],d3 : RawDao.Dao[RoomMessage]) : Service = new{}
+  def apply()(using d1 : IntDaoSyncInline[Message], d2 :  RawDaoInline.Sync[UserUserMessage], d3 : RawDaoInline.Sync[RoomMessage]) : Service = new{}
 
 }
 
-trait Service(using d1 : IntDaoSync[Message], d2 :  RawDao.Dao[UserUserMessage],d3 : RawDao.Dao[RoomMessage]) :
+trait Service(using d1 : IntDaoSyncInline[Message], d2 :  RawDaoInline.Sync[UserUserMessage], d3 : RawDaoInline.Sync[RoomMessage]) :
   extension (u : User)
     inline def sendToUser( m : Message, de : Int):Message =
       val mSave = m.save()

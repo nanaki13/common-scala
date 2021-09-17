@@ -16,7 +16,7 @@ import bon.jo.datamodeler.util.Utils
 
 
 
-trait Dao[E,ID](using Pool[java.sql.Connection], Sql[E] ) extends DaoOps[E,ID] with  RawDao[E,IdCompiledFunction[E]]:
+trait DaoInline[E,ID](using Pool[java.sql.Connection], Sql[E] ) extends DaoOpsInline[E,ID] with  RawDaoInline[E,IdCompiledFunction[E]]:
 
 
   extension (e : E)
@@ -116,27 +116,27 @@ trait Dao[E,ID](using Pool[java.sql.Connection], Sql[E] ) extends DaoOps[E,ID] w
 
 
 
-end Dao
+end DaoInline
 
-object Dao:
-  inline def dao[E](using RawDao.Dao[E]) : RawDao.Dao[E]= summon
+object DaoInline:
+  inline def dao[E](using RawDaoInline.Sync[E]) : RawDaoInline.Sync[E]= summon
   object EntityMethods:
-    extension[E](e : E)(using RawDao.Dao[E])
+    extension[E](e : E)(using RawDaoInline.Sync[E])
       inline def insertRaw()  = dao.insert(e)
 
   object IntEntityMethods:
-    extension[E](e : E)(using IntDaoSync[E])
-      inline def insert()  = IntDaoSync.dao.insert(e)
-      inline def update()  = IntDaoSync.dao.update(e)
-      inline def delete()  = IntDaoSync.dao.delete(e)
-      inline def save()  = IntDaoSync.dao.save(e)
+    extension[E](e : E)(using IntDaoSyncInline[E])
+      inline def insert()  = IntDaoSyncInline.dao.insert(e)
+      inline def update()  = IntDaoSyncInline.dao.update(e)
+      inline def delete()  = IntDaoSyncInline.dao.delete(e)
+      inline def save()  = IntDaoSyncInline.dao.save(e)
 
 
 
 
-  object IntDaoSync :
-    inline def dao[E](using IntDaoSync[E]) : IntDaoSync[E]= summon
-    inline def apply[E]( fromIdF : (id : Int,e : E) => E)(using Pool[java.sql.Connection]  ) :IntDaoSync[E] =
+  object IntDaoSyncInline :
+    inline def dao[E](using IntDaoSyncInline[E]) : IntDaoSyncInline[E]= summon
+    inline def apply[E]( fromIdF : (id : Int,e : E) => E)(using Pool[java.sql.Connection]  ) :IntDaoSyncInline[E] =
       given Sql[E] = Sql()
       new {
         val reqConstant: ReqConstant[E] = ReqConstant[E]()
@@ -145,11 +145,11 @@ object Dao:
       }
 
 
-  trait IntDaoSync[E](using Pool[java.sql.Connection]  ,    Sql[E] ) extends  DaoOps.Sync[E,Int],Dao[E,Int]:
+  trait IntDaoSyncInline[E](using Pool[java.sql.Connection], Sql[E] ) extends  DaoOpsInline.Sync[E,Int],DaoInline[E,Int]:
     def fromId(id : Int,e : E) : E
     val reqConstant: ReqConstant[E]
-    inline def freeId : Int = maxId + 1
-    def nextId(id : Int) : Int = id+1
+
+
     inline def save(e : E) : E =
       onPreStmt(reqConstant.insertString) {
         fillInsert(e, SimpleSql.thisPreStmt)
@@ -162,5 +162,5 @@ object Dao:
 
 
 
-end Dao
+end DaoInline
   

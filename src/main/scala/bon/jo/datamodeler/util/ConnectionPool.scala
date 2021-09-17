@@ -52,9 +52,11 @@ object ConnectionPool:
   extension (p :  Pool[Connection])
     def closeAll():Unit = 
      
-        p.toAll(con => 
+        p.toAll( con =>
+          given Connection = con
           try
             con.close
+            p.release
           catch 
             case e : java.sql.SQLException => println(e)
           )
