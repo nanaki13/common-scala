@@ -2,7 +2,7 @@ package bon.jo.datamodeler.model.sql
 
 import bon.jo.datamodeler.model.Model.{Event, Groupe, Room, User, UserRoom}
 import bon.jo.datamodeler.model.macros.GenMacro
-import bon.jo.datamodeler.model.sql.Dao
+import bon.jo.datamodeler.model.sql.DaoInline
 import bon.jo.datamodeler.util.Utils.writer
 import bon.jo.datamodeler.util.{ConnectionPool, Pool}
 import org.scalatest.*
@@ -18,14 +18,14 @@ class Test extends AnyFlatSpec with should.Matchers:
 
 
     given StringBuilder = StringBuilder()
-    given Pool[java.sql.Connection] = ConnectionPool(10)("jdbc:sqlite:sample2.db","org.sqlite.JDBC")
+    given Pool[java.sql.Connection] = ConnectionPool(10)("jdbc:sqlite:sample3.db","org.sqlite.JDBC")
 
-    given daoRoom :  Dao.IntDaoSync[Room] = Dao.IntDaoSync[Room]((id, e ) => e.copy(id = id) )
-    given daoUser : Dao.IntDaoSync[User] = Dao.IntDaoSync[User]((id, e ) => e.copy(id = id) )
-    given eventDao : Dao.IntDaoSync[Event] = Dao.IntDaoSync[Event]((id, e ) => e.copy(id = id) )
-    given groupDao : Dao.IntDaoSync[Groupe] = Dao.IntDaoSync[Groupe]((id, e ) => e.copy(id = id) )
+    given daoRoom :  DaoInline.IntDaoSyncInline[Room] = DaoInline.IntDaoSyncInline[Room]((id, e ) => e.copy(id = id) )
+    given daoUser : DaoInline.IntDaoSyncInline[User] = DaoInline.IntDaoSyncInline[User]((id, e ) => e.copy(id = id) )
+    given eventDao : DaoInline.IntDaoSyncInline[Event] = DaoInline.IntDaoSyncInline[Event]((id, e ) => e.copy(id = id) )
+    given groupDao : DaoInline.IntDaoSyncInline[Groupe] = DaoInline.IntDaoSyncInline[Groupe]((id, e ) => e.copy(id = id) )
 
-    val linkDao : RawDao.Dao[UserRoom] = RawDao[UserRoom]
+    val linkDao : RawDaoInline.Sync[UserRoom] = RawDaoInline[UserRoom]()
 
     import bon.jo.datamodeler.util.ConnectionPool.*
 
@@ -71,7 +71,7 @@ class Test extends AnyFlatSpec with should.Matchers:
 
 
       {
-        import Dao.IntEntityMethods.*
+        import DaoInline.IntEntityMethods.*
         import bon.jo.datamodeler.model.Model.toRoom
         user = user.save()
 

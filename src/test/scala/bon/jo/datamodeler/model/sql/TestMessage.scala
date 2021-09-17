@@ -2,7 +2,7 @@ package bon.jo.datamodeler.model.sql
 
 import bon.jo.datamodeler.model.Model.{Event, Groupe, Message, Room, RoomMessage, User, UserRoom, UserUserMessage}
 import bon.jo.datamodeler.model.macros.GenMacro
-import bon.jo.datamodeler.model.sql.Dao
+import bon.jo.datamodeler.model.sql.DaoInline
 import bon.jo.datamodeler.service.Service
 import bon.jo.datamodeler.util.{ConnectionPool, Pool}
 import org.scalatest.*
@@ -18,11 +18,11 @@ import scala.concurrent.{Await, Future}
 class TestMessage extends AnyFlatSpec with should.Matchers:
 
   given Pool[java.sql.Connection] = ConnectionPool(10)("jdbc:sqlite:sample.db","org.sqlite.JDBC")
-  given Dao.IntDaoSync[Room] = Dao.IntDaoSync[Room]((id, e ) => e.copy(id = id) )
-  given Dao.IntDaoSync[User] = Dao.IntDaoSync[User]((id, e ) => e.copy(id = id) )
-  given Dao.IntDaoSync[Message] = Dao.IntDaoSync[Message]((id, e ) => e.copy(id = id) )
-  given RawDao.Dao[RoomMessage] = RawDao[RoomMessage]
-  given RawDao.Dao[UserUserMessage] = RawDao[UserUserMessage]
+  given DaoInline.IntDaoSyncInline[Room] = DaoInline.IntDaoSyncInline[Room]((id, e ) => e.copy(id = id) )
+  given DaoInline.IntDaoSyncInline[User] = DaoInline.IntDaoSyncInline[User]((id, e ) => e.copy(id = id) )
+  given DaoInline.IntDaoSyncInline[Message] = DaoInline.IntDaoSyncInline[Message]((id, e ) => e.copy(id = id) )
+  given RawDaoInline.Sync[RoomMessage] = RawDaoInline[RoomMessage]()
+  given RawDaoInline.Sync[UserUserMessage] = RawDaoInline[UserUserMessage]()
   import bon.jo.datamodeler.util.ConnectionPool.*
   "A user" should " send message" in {
 
@@ -50,7 +50,7 @@ class TestMessage extends AnyFlatSpec with should.Matchers:
 
       val service = Service()
       import service.*
-      import Dao.IntEntityMethods.*
+      import DaoInline.IntEntityMethods.*
 
       var u1 = User(name = "u1",email = "test@test")
       var u2 = u1.copy(name = "u2")
@@ -60,7 +60,7 @@ class TestMessage extends AnyFlatSpec with should.Matchers:
       println(u1)
       println(u2)
 
-      def lcnh = for(_ <- 1 to 100)
+      def lcnh = for(_ <- 1 to 10)
        // pool.printSate
         u1.sendToUser(Message(content = "salut u2"),2)
         u2.send(Message(content = "meci u1"),u1)
