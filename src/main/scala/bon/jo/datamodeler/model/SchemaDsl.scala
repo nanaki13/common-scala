@@ -73,7 +73,7 @@ object Main:
   def nIdp = 
     idP+=1
     idP
-  @main def testDll() = 
+  def testDll() =
     //showScala
     SchemaDsl.entites().map(SchemaDsl.daoTemplate).foreach(println)
     def testCreateInsert() =

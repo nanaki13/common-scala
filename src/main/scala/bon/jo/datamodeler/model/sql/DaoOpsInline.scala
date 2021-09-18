@@ -15,6 +15,7 @@ trait DaoOpsInline[E,ID] extends RawDaoOpsInline[E]:
   inline def maxId :W[ID]
   inline def update(id : ID,e: E) : W[Int]
   inline def update(e: E) : W[Int]
+  inline def insert(e: E): W[Int]
   inline def deleteById( e : ID) : W[Int]
   inline def delete(e: E): W[Int]
   inline def save(e : E) : W[E]
@@ -46,27 +47,27 @@ object DaoOpsInline :
     def selectById(id : ID) : W[Option[E]] =_selectById(id)
 
   object Sync:
-    trait FromId [E,ID](val fromId : (id : ID,e : E) => E)(using Pool[Connection]):
-      me : Sync[E,ID] =>
-        inline def save(e : E) : E =
-          onPreStmt(reqConstant.insertString) {
-            compiledFunction.fillInsert(e, SimpleSql.thisPreStmt)
-            val pre : PreparedStatement = SimpleSql.thisPreStmt
-            SimpleSql.thisPreStmt.executeUpdate
-            fromId(maxId,e)
-          }
-        inline def saveAll(es : Iterable[E]) : Iterable[E] =
-          es.map(save(_))
-    inline def apply[E,ID]( fromId : (id : ID,e : E) => E)(using Pool[Connection]) : Sync[E,ID]=
-      given Sql[E] = Sql()
-      new  DaoInline[E,ID] with Sync[E,ID] with FromId[E,ID](fromId){
 
-        val reqConstant : ReqConstant[E] = ReqConstant()
-        val compiledFunction : IdCompiledFunction[E]   = IdCompiledFunction()
+    inline def apply[E,ID]( fromId : (id : ID,e : E) => E)(using Pool[Connection]) : Sync[E,ID] =
+      given Sql[E] = Sql()
+      new  DaoInline[E,ID] with Sync[E,ID](fromId) {
+
+        override val reqConstant : ReqConstant[E] = ReqConstant()
+        override val compiledFunction : IdCompiledFunction[E]   = IdCompiledFunction()
       }
-  trait Sync[E,ID] extends DaoOpsInline[E,ID] with bon.jo.datamodeler.model.sql.RawDaoOpsInline.Sync[E]:
+  trait Sync[E,ID](val fromId : (id : ID,e : E) => E)(using Pool[Connection]) extends DaoInline[E,ID]:
     type W[A] = A
-    val reqConstant : ReqConstant[E]
+
+    inline def save(e : E) : E =
+      onPreStmt(reqConstant.insertString) {
+        compiledFunction.fillInsert(e, SimpleSql.thisPreStmt)
+        val pre : PreparedStatement = SimpleSql.thisPreStmt
+        SimpleSql.thisPreStmt.executeUpdate
+        fromId(maxId,e)
+      }
+    inline def saveAll(es : Iterable[E]) : Iterable[E] =
+      es.map(save(_))
+    override inline def wFactory[A](a: A): W[A] = a
 
 
 

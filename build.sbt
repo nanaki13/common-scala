@@ -17,8 +17,10 @@ lazy val `data-modeler` = (project in file(".") ).settings{
 
 lazy val `server` = (project in file("data-server") ).settings{
   name := "data-server"
-
-  libraryDependencies += ("com.typesafe.akka" %% "akka-http" % "10.2.6").cross(CrossVersion.for3Use2_13)
- // libraryDependencies += ("com.typesafe.akka" %% "akka-actor" % "2.6.16").cross(CrossVersion.for3Use2_13)
-  libraryDependencies += ("com.typesafe.akka" %% "akka-actor-typed" % "2.6.16").cross(CrossVersion.for3Use2_13)
-}.settings( common)
+  libraryDependencies ++=Seq (
+    ("com.typesafe.akka" %% "akka-http" % "10.2.6").cross(CrossVersion.for3Use2_13),
+    ("com.typesafe.akka" %% "akka-stream" % "2.6.16").cross(CrossVersion.for3Use2_13),
+    ("io.spray" %% "spray-json" % "1.3.6").cross(CrossVersion.for3Use2_13),
+    ("com.typesafe.akka" %% "akka-actor-typed" % "2.6.16").cross(CrossVersion.for3Use2_13),
+    ("com.typesafe.akka" %% "akka-http-spray-json" % "10.2.6").cross(CrossVersion.for3Use2_13))
+}.settings( common).dependsOn(`data-modeler`)

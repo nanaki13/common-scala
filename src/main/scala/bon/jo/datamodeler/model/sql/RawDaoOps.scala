@@ -9,17 +9,17 @@ trait RawDaoOps[E]:
     type W[A]
     def sqlImpl(using  Sql[E]) = summon
     def wFactory[A](a: A): W[A]
-    inline def max[T](inline fSel: E => T): W[T]
+   // inline def max[T](inline fSel: E => T): W[T]
     def insert(e: E): W[Int]
     def insertAll(es: Iterable[E]): W[Int]
-    inline def select(inline fSel: E => Any, value: Any): W[Option[E]]
+  // inline def select(inline fSel: E => Any, value: Any): W[Option[E]]
     def selectAll(): W[List[E]]
     def deleteAll(): W[Int]
 
-    inline def delete(e: E, inline f: E => Any): W[Int]
-    inline def join[B, IDB](
+  // inline def delete(e: E, inline f: E => Any): W[Int]
+  /*  inline def join[B, IDB](
       inline fk: E => IDB
-  )(using DaoOpsInline.Sync[B, IDB]): W[List[(E, B)]]
+  )(using DaoOpsInline.Sync[B, IDB]): W[List[(E, B)]]*/
 
 object RawDaoOps:
 
@@ -45,20 +45,20 @@ object RawDaoOps:
     val _selectAll : () =>  List[E],
     val _deleteAll : () =>  Int
 
-                 )(using RawDaoOpsInline.Sync[E]) extends RawDaoOps[E]:
+                 ) extends RawDaoOps[E]:
 
 
-    inline def sub : RawDaoOpsInline.Sync[E] = summon
+    //inline def sub : RawDaoOpsInline.Sync[E] = summon
     //  def wFactory[A](a: A): W[A]
-    inline def max[T](inline fSel: E => T): W[T]  = wFactory(sub.max(fSel))
+    //inline def max[T](inline fSel: E => T): W[T]  = wFactory(sub.max(fSel))
     def insert(e: E): W[Int] = wFactory(_insert(e))
     def insertAll(es: Iterable[E]): W[Int] =wFactory( _insertAll(es))
-    inline def select(inline fSel: E => Any, value: Any): W[Option[E]] = wFactory(sub.select(fSel,value))
+    //inline def select(inline fSel: E => Any, value: Any): W[Option[E]] = wFactory(sub.select(fSel,value))
     def selectAll(): W[List[E]] = wFactory(_selectAll())
     def deleteAll(): W[Int] = wFactory(_deleteAll())
 
-    inline def delete(e: E, inline f: E => Any): W[Int]  = wFactory(sub.delete(e,f))
-    inline def join[B, IDB](
+    // inline def delete(e: E, inline f: E => Any): W[Int]  = wFactory(sub.delete(e,f))
+   /* inline def join[B, IDB](
                     inline fk: E => IDB
-                  )(using DaoOpsInline.Sync[B, IDB]): W[List[(E, B)]]   = wFactory(sub.join(fk))
+                  )(using DaoOpsInline.Sync[B, IDB]): W[List[(E, B)]]   = wFactory(sub.join(fk))*/
 
