@@ -11,5 +11,5 @@ class UserJsonSupport extends JsonSupport[User] {
 
 
 
-  given format: RootJsonFormat[User] = jsonFormat3(User.apply)
+  override given format: RootJsonFormat[User] = jsonFormat3(User.apply)
 }

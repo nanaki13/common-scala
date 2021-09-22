@@ -9,11 +9,6 @@ import spray.json.JsValue
 import spray.json.RootJsonFormat
 
 trait JsonSupport[T]{
-  s :  SprayJsonSupport =>
-  // import the default encoders for primitive types (Int, String, Lists etc)
-  //import DefaultJsonProtocol._
 
-
-
-  implicit val userFormat: RootJsonFormat[User] = jsonFormat3(User.apply)
+  given format: RootJsonFormat[T]
 }

@@ -1,33 +1,44 @@
 package bon.jo.datamodeler.model
 
 import akka.actor.typed.scaladsl.Behaviors
-import akka.actor.typed.{ActorSystem, Behavior, PostStop}
+import akka.actor.typed.{ActorRef, ActorSystem, Behavior, PostStop}
 import akka.http.scaladsl.Http.ServerBinding
 import akka.http.scaladsl.Http
 import bon.jo.datamodeler.model.Model.User
 import bon.jo.datamodeler.model.sql.DaoOps
-import bon.jo.datamodeler.server.Repository
+import bon.jo.datamodeler.server.{Command, Repository}
 import bon.jo.datamodeler.util.{ConnectionPool, Pool}
 
 import scala.concurrent.Future
 import scala.util.{Failure, Success}
+import Server.Message
+import Server.Message.*
 
-object Server {
+object Server :
+  enum Message :
+    private [Server] case StartFailed(cause: Throwable)
+    private [Server] case Started(binding: ServerBinding)
+    private [Server] case Stop
+  class ServerImpl( val host: String,
+  val port: Int)(using pool : Pool[java.sql.Connection])extends Server
+  def test( host: String,
+   port: Int):Server =
+    given Pool[java.sql.Connection] = ConnectionPool(10)("jdbc:sqlite:sample2.db","org.sqlite.JDBC")
+    ServerImpl( host,port)
+trait Server(using Pool[java.sql.Connection]) {
 
-  sealed trait Message
-  private final case class StartFailed(cause: Throwable) extends Message
-  private final case class Started(binding: ServerBinding) extends Message
-  case object Stop extends Message
-
-  def apply(host: String, port: Int): Behavior[Message] = Behaviors.setup { ctx =>
+  val host: String
+  val port: Int
+  def apply(): Behavior[Message] = Behaviors.setup { ctx =>
 
     implicit val system = ctx.system
-    given Pool[java.sql.Connection] = ConnectionPool(10)("jdbc:sqlite:sample2.db","org.sqlite.JDBC")
+
     val userDao : DaoOps.Sync[User,Int] = DaoOps.Sync.fromPool((id,e)=>e.copy(id = id))
     userDao.save(User(name = "test"))
     userDao.save(User(name = "toto"))
-    val buildJobRepository = ctx.spawn(Repository(userDao), "JobRepository")
-    val routes = new UserRoutes("user",buildJobRepository)
+    given ActorRef[Command[User]] = ctx.spawn(Repository(userDao), "JobRepository")
+    given JsonSupport[User] = UserJsonSupport()
+    val routes = new UserRoutes("user")
 
     val serverBinding: Future[Http.ServerBinding] =
       Http().newServerAt(host, port).bind(routes.theJobRoutes)
@@ -71,8 +82,8 @@ object Server {
   }
 }
 
-@main def serverMain(): Unit = {
+@main def serverTest(): Unit = {
   val system: ActorSystem[Server.Message] =
-    ActorSystem(Server("localhost", 8080), "BuildJobsServer")
+    ActorSystem(Server.test("localhost", 8080)(), "BuildJobsServer")
   //bon.jo.datamodeler.model.te()
 }

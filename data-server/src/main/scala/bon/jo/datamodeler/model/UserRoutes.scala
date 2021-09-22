@@ -14,7 +14,7 @@ import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
 import scala.concurrent.duration.*
 import scala.concurrent.Future
 
-class UserRoutes[T](baseRoute : String,buildJobRepository: ActorRef[Command[T]],support : JsonSupport[T])(using ActorSystem[_]) extends SprayJsonSupport {
+class UserRoutes[T](baseRoute : String)(using s : ActorSystem[_],support : JsonSupport[T],buildJobRepository: ActorRef[Command[T]]) extends SprayJsonSupport {
 
   import akka.actor.typed.scaladsl.AskPattern.schedulerFromActorSystem
   import akka.actor.typed.scaladsl.AskPattern.Askable
