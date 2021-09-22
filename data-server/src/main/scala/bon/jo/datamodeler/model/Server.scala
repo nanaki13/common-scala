@@ -6,6 +6,7 @@ import akka.http.scaladsl.Http.ServerBinding
 import akka.http.scaladsl.Http
 import bon.jo.datamodeler.model.Model.User
 import bon.jo.datamodeler.model.sql.DaoOps
+import bon.jo.datamodeler.server.Repository
 import bon.jo.datamodeler.util.{ConnectionPool, Pool}
 
 import scala.concurrent.Future
@@ -25,8 +26,8 @@ object Server {
     val userDao : DaoOps.Sync[User,Int] = DaoOps.Sync.fromPool((id,e)=>e.copy(id = id))
     userDao.save(User(name = "test"))
     userDao.save(User(name = "toto"))
-    val buildJobRepository = ctx.spawn(UserRepository(userDao), "JobRepository")
-    val routes = new UserRoutes(buildJobRepository)
+    val buildJobRepository = ctx.spawn(Repository(userDao), "JobRepository")
+    val routes = new UserRoutes("user",buildJobRepository)
 
     val serverBinding: Future[Http.ServerBinding] =
       Http().newServerAt(host, port).bind(routes.theJobRoutes)
