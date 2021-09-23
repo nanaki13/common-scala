@@ -8,3 +8,5 @@ enum Command[T]:
   case Add(user: T, replyTo: ActorRef[T])
   case GetById(id: Int, replyTo: ActorRef[Option[T]])
   case Clear(replyTo: ActorRef[Response])
+  case DeleteById(id: Int, replyTo: ActorRef[Response])
+  case UpdateById(id: Int,user: T, replyTo:ActorRef[Response])

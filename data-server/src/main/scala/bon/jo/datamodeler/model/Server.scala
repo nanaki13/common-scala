@@ -27,6 +27,7 @@ object Server :
     ServerImpl( host,port)
 trait Server(using Pool[java.sql.Connection]) {
 
+  def pool : Pool[java.sql.Connection] = summon
   val host: String
   val port: Int
   def apply(): Behavior[Message] = Behaviors.setup { ctx =>
@@ -34,8 +35,7 @@ trait Server(using Pool[java.sql.Connection]) {
     implicit val system = ctx.system
 
     val userDao : DaoOps.Sync[User,Int] = DaoOps.Sync.fromPool((id,e)=>e.copy(id = id))
-    userDao.save(User(name = "test"))
-    userDao.save(User(name = "toto"))
+
     given ActorRef[Command[User]] = ctx.spawn(Repository(userDao), "JobRepository")
     given JsonSupport[User] = UserJsonSupport()
     val routes = new UserRoutes("user")

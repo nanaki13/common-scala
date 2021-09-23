@@ -22,5 +22,18 @@ object Repository {
       dao.deleteAll()
       replyTo ! OK
       Behaviors.same
+    case DeleteById(id, replyTo) =>
+      dao.deleteById(id)
+      replyTo ! OK
+      Behaviors.same
+    case UpdateById(id,user, replyTo) =>
+      val update = dao.update(id,user)
+      val userUpdate = update match {
+        case 0 => OK
+        case _ => KO("user not found")
+      }
+      replyTo ! userUpdate 
+      Behaviors.same
+
   }
 }
