@@ -68,8 +68,8 @@ class UserRoutes[T](baseRoute : String)(using s : ActorSystem[_],support : JsonS
           val operationPerformed: Future[Response] =
             buildJobRepository.ask(DeleteById(id,_))
           onSuccess(operationPerformed) {
-            case OK         => complete("Jobs cleared")
-            case KO(reason) => complete(StatusCodes.InternalServerError -> reason)
+            case OK         => complete(StatusCodes.NoContent)
+            case KO(reason) => complete(StatusCodes.NotFound -> reason)
 
           }
         }

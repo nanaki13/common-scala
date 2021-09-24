@@ -86,7 +86,7 @@ trait DaoInline[E,ID](using Pool[java.sql.Connection], Sql[E] ) extends DaoOpsIn
         val nbCol = GenMacro.countFields[E]
         for (e <- es)
           compiledFunction.fillUpdate(e, SimpleSql.thisPreStmt)
-          compiledFunction.fillPreparedStatmentWithId(e,1,SimpleSql.thisPreStmt)
+          compiledFunction.fillPreparedStatmentWithId(e,GenMacro.countFields[E] + 1,SimpleSql.thisPreStmt)
           SimpleSql.thisPreStmt.addBatch()
         SimpleSql.thisPreStmt.executeBatch.sum
       }
@@ -97,9 +97,8 @@ trait DaoInline[E,ID](using Pool[java.sql.Connection], Sql[E] ) extends DaoOpsIn
     wFactory {
       onPreStmt(reqConstant.updateById){
         val nbCol = GenMacro.countFields[E]
-        fillInsert(e,SimpleSql.thisPreStmt)
-
-        SimpleSql.thisPreStmt.setObject(nbCol+1,id)
+        compiledFunction.fillUpdate(e,SimpleSql.thisPreStmt)
+        SimpleSql.thisPreStmt.setObject(GenMacro.countFields[E] + 1,id)
         SimpleSql.thisPreStmt.executeUpdate
       }
     }

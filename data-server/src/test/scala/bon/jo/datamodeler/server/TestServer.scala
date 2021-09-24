@@ -28,6 +28,7 @@ class TestServer extends AnyFlatSpec with should.Matchers with SprayJsonSupport:
   def url = s"http://$host:$port/user"
   val server = Server.test(host, port)
   given system: ActorSystem[Server.Message] =  ActorSystem(server(), "BuildJobsServer")
+
   given ExecutionContext = system.executionContext
   val s : UserJsonSupport  = UserJsonSupport()
   import s.given
@@ -80,27 +81,30 @@ class TestServer extends AnyFlatSpec with should.Matchers with SprayJsonSupport:
     rest.name should be ("John")
 
   }
-  "A server" can " deal with put user" in {
+  "A server" can " deal with put user an delete" in {
 
-    val r = HttpRequest(PUT,url+"/1",
+    var r = HttpRequest(PUT,url+"/1",
       entity = HttpEntity.apply(contentType = ContentTypes.`application/json`,
-        userRef.copy(name = "Bob").jsString()) )
-    val respF : Future[User] = Http().singleRequest(r).flatMap{ resp =>
-      resp.status should be (StatusCodes.OK)
-      Unmarshal(resp).to[User]
+        userRef.copy(id= 22,name = "Boasb").jsString()) )
+    val rest = Http().singleRequest(r).map{ resp =>
+      resp.status
     }
-    val rest = wait(respF)
-    rest.name should be ("Bob")
-
+    wait(rest) should be (StatusCodes.NoContent)
+    r = HttpRequest(DELETE,url+"/22")
+    val respStatus = Http().singleRequest(r).map(_.status)
+    val stat = wait(respStatus)
+    stat should be (StatusCodes.NoContent)
+    system.terminate()
   }
-  "A server" can " deal with delete user" in {
+  /*"A server" can " deal with delete user" in {
 
     val r = HttpRequest(DELETE,url+"/1")
     val respStatus = Http().singleRequest(r).map(_.status)
     val rest = wait(respStatus)
     rest should be (StatusCodes.NoContent)
+    system.terminate()
 
-  }
+  }*/
 
 
 

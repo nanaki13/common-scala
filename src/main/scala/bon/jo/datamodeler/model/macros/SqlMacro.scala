@@ -115,11 +115,11 @@ object SqlMacro:
 
     if (idSize == 1) then
       '{ (a: T, offset: Offset, p: PreparedStatement) =>
-        ${ SqlMacroHelper().fillPreparedStatmentWithId('{ a }, '{ offset }, '{ p }) }
+        ${ SqlMacroHelper().fillPreparedStatmentWithUniqueId('{ a }, '{ offset }, '{ p }) }
       }
     else if (idSize > 1) then
       '{ (a: T, offset: Offset, p: PreparedStatement) =>
-        ${ SqlMacroHelper().fillPreparedStatmentWithUniqueId('{ a }, '{ offset }, '{ p }) }
+        ${ SqlMacroHelper().fillPreparedStatmentWithId('{ a }, '{ offset }, '{ p }) }
       }
     else
       '{

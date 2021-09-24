@@ -108,6 +108,11 @@ class Test extends AnyFlatSpec with should.Matchers:
       daoUser.update(user) should be (1)
       (daoUser.select(_.id,user.id)).get should be (user)
 
+      user.copy(name="ttt")
+      val updated = daoUser.update(user.id,user)
+      updated should be (1)
+      daoUser.selectById(user.id).get should be (user)
+
     end t2
 
     inline def now =  System.currentTimeMillis

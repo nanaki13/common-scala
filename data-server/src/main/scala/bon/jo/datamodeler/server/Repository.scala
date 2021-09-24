@@ -23,15 +23,12 @@ object Repository {
       replyTo ! OK
       Behaviors.same
     case DeleteById(id, replyTo) =>
-      dao.deleteById(id)
-      replyTo ! OK
+      val resp = if dao.deleteById(id) == 0 then KO("not found") else OK
+      replyTo ! resp
       Behaviors.same
     case UpdateById(id,user, replyTo) =>
-      val update = dao.update(id,user)
-      val userUpdate = update match {
-        case 0 => OK
-        case _ => KO("user not found")
-      }
+      println(id)
+      val userUpdate = if dao.update(id,user) == 0 then KO("not found") else OK
       replyTo ! userUpdate 
       Behaviors.same
 
