@@ -1,5 +1,6 @@
 package bon.jo.datamodeler.model.sql
 
+import bon.jo.datamodeler.model.Page
 import bon.jo.datamodeler.model.macros.{GenMacro, SqlMacro}
 import bon.jo.datamodeler.util.ConnectionPool.{onPreStmt, onStmt}
 import bon.jo.datamodeler.util.Utils.{/, writer}
@@ -88,6 +89,27 @@ trait RawDaoInline[E,CF <:CompiledFunction[E]](using Pool[java.sql.Connection], 
 
       }
     }
+
+  inline def selectAll(page : Page): W[Page.Response[E]] =
+    wFactory {
+      onStmt {
+        val res = SimpleSql.thisStmt.executeQuery(reqConstant.selectCount)
+        res.next()
+        val count =res.getLong(1)
+        val nbCount = count / page.size + 1
+        val offset = page.size * page.pageNumber
+        val queryString = Utils.stringBuilder {
+            /(reqConstant.selectAllString + " ")
+              SqlWriter.limit(offset, page.size)
+        }
+
+        val resLimited = SimpleSql.thisStmt.executeQuery(queryString)
+        Page.Response(res.iterator(r => compiledFunction.readResultSet(r, 0)).toList,page.pageNumber,nbCount.toInt)
+
+      }
+    }
+
+
 
   inline def deleteAll(): W[Int] =
     wFactory {

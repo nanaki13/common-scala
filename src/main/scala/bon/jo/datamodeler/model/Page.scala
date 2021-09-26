@@ -1,5 +1,7 @@
 package bon.jo.datamodeler.model
 
+import bon.jo.datamodeler.model.ForFun.Fact
+
 import scala.annotation.unchecked.uncheckedVariance
 
 sealed trait Page:
@@ -7,41 +9,29 @@ sealed trait Page:
   val pageNumber : Int
 
 object Page:
+
+
+
+  given Fact[Response] with
+    def apply[A](r : Response[A]) = r._data
+    def apply[A](r : Iterable[A]): Response[A] = Response(r.toList,0,0)
+  given toIteOnce[A]:  (Response[A] =>  IterableOnce[A]) with
+    def apply(r : Response[A]) =  r._data
   
+  case class Request(pageNumber : Int,
+    size : Int
+    ) extends Page:
+      assert(size > 0,s"size must be > 0 ($size)")
+  case class Response[+A] (
+    _data : List[A]
+    ,val pageNumber : Int,val pageCount : Int) extends Page:
+    val size = _data.size
 
-  case class Request(
-    size : Int,
-    pageNumber : Int) extends Page
-  case class Response[+A,+CC[_] <: Iterable[_],+C] (
-    size : Int,
-    pageNumber : Int,pageCount : Int,
-    _data : C
-    ) extends Page
 
-  type R[A,C[_] <: Iterable[_]] = Response[A ,C,C[A]]
-  type PageList[A] = R[A,List]
-  object PageList:
-    def apply[A](pageNumber : Int,pageCount : Int,l : List[A]) :  PageList[A] = 
-      Response(l.size,pageNumber,pageCount,l)
-  extension[A,T[_] <: Iterable[_]] (r : R[A,T])
 
-    def empty[B] :  R[B,T] = Response(0,
-      r.pageNumber,r.pageCount,
-      r._data.empty.asInstanceOf[T[B]])
-    def ++(o : R[A,T]):  R[A,T] =
-      Response(r.size + o.size,r.pageNumber,r.pageCount,(r._data ++ o._data).asInstanceOf[T[A]])
 
-    def flatMap[B](f : A => R[B,T]): R[B,T] =
-      r._data
-        .map[R[B,T]](
-          f.asInstanceOf[(Any => R[B,T])])
-        .foldLeft[R[B,T]](empty)((a,b) =>  ( a++ b).asInstanceOf[R[B,T]])
-    def map[B](f : A => B): Response[B,T,T[B]] =
-      val d : T[A] = r._data
-      Response[B,T,T[B]](r.size,
-        r.pageNumber,
-        r.pageCount,
-          d.map[B](f.asInstanceOf[(Any => B)]).asInstanceOf[T[B]])
+
+
 
 
 

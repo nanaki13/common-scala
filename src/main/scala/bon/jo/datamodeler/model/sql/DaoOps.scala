@@ -1,7 +1,6 @@
 package bon.jo.datamodeler.model.sql
 
-import bon.jo.datamodeler.model.sql
-
+import bon.jo.datamodeler.model.{Page, sql}
 import bon.jo.datamodeler.util.Pool
 
 import java.sql.Connection
@@ -23,6 +22,7 @@ object DaoOps:
                     val __insert : (e: E) =>  Int,
                     val __insertAll : (es: Iterable[E]) =>  Int,
                     val __selectAll : () =>  List[E],
+                    val __selectAllPaged : (page : Page) =>  Page.Response[E],
                     val __deleteAll : () =>  Int,
                     val _maxId : () => ID,
                     val _updateId : (id : ID,e: E) => Int,
@@ -33,7 +33,7 @@ object DaoOps:
                     val  _saveAll : (es : Iterable[E]) => Iterable[E] ,
                     val  _selectById : (id : ID) => Option[E]
 
-                 )(using d :  DaoOpsInline.Sync[E,ID]) extends DaoOps[E,ID] with RawDaoOps.Impl[E](__insert,__insertAll,__selectAll,__deleteAll):
+                 )(using d :  DaoOpsInline.Sync[E,ID]) extends DaoOps[E,ID] with RawDaoOps.Impl[E](__insert,__insertAll,__selectAll,__selectAllPaged,__deleteAll):
         def maxId :W[ID]     = wFactory( _maxId()  )
         def update(id : ID,e: E) : W[Int]  = wFactory( _updateId(id,e)  )
         def update(e: E) : W[Int] = wFactory( _update(e)  )
@@ -46,6 +46,7 @@ object DaoOps:
                       _insert : (e: E) =>  Int,
                       _insertAll : (es: Iterable[E]) =>  Int,
                       _selectAll : () =>  List[E],
+                      _selectAllPaged : (page : Page) =>  Page.Response[E],
                       _deleteAll : () =>  Int,
                       _maxId : () => ID,
                       _updateId : (id : ID,e: E) => Int,
@@ -59,6 +60,7 @@ object DaoOps:
                     )(using d :  DaoOpsInline.Sync[E,ID]) extends  Impl[E,ID]( _insert : (e: E) =>  Int,
       _insertAll,
       _selectAll,
+      _selectAllPaged,
       _deleteAll ,
       _maxId,
       _updateId ,
@@ -76,6 +78,7 @@ object DaoOps:
             d.insert(_),
             d.insertAll(_),
             () => d.selectAll(),
+            d.selectAll(_),
             () =>d.deleteAll(),
             () =>d.maxId,
             d.update(_,_),
@@ -88,6 +91,7 @@ object DaoOps:
           d.insert(_),
           d.insertAll(_),
           () => d.selectAll(),
+          d.selectAll(_),
           () =>d.deleteAll(),
           () =>d.maxId,
           d.update(_,_),

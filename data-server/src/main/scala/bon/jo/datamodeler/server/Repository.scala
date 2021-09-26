@@ -31,6 +31,9 @@ object Repository {
       val userUpdate = if dao.update(id,user) == 0 then KO("not found") else OK
       replyTo ! userUpdate 
       Behaviors.same
+    case GetAll(page,replyTo) =>
+      replyTo ! dao.selectAll(page)
+      Behaviors.same  
 
   }
 }

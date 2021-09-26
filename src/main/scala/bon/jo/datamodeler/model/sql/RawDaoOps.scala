@@ -1,6 +1,6 @@
 package bon.jo.datamodeler.model.sql
 
-import bon.jo.datamodeler.model.sql
+import bon.jo.datamodeler.model.{Page, sql}
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -14,6 +14,8 @@ trait RawDaoOps[E]:
     def insertAll(es: Iterable[E]): W[Int]
   // inline def select(inline fSel: E => Any, value: Any): W[Option[E]]
     def selectAll(): W[List[E]]
+
+    def selectAll(page : Page): W[Page.Response[E]]
     def deleteAll(): W[Int]
 
   // inline def delete(e: E, inline f: E => Any): W[Int]
@@ -27,22 +29,25 @@ object RawDaoOps:
                   _insert : (e: E) =>  Int,
                   _insertAll : (es: Iterable[E]) =>  Int,
                   _selectAll : () =>  List[E],
+                  _selectAllPaged : (page : Page) =>  Page.Response[E],
                   _deleteAll : () =>  Int
-               )(using RawDaoOpsInline.Sync[E]) extends Impl[E](_insert,_insertAll,_selectAll,_deleteAll):
+               )(using RawDaoOpsInline.Sync[E]) extends Impl[E](_insert,_insertAll,_selectAll,_selectAllPaged,_deleteAll):
     override type W[A] = A
     override inline def wFactory[A](a :A) = a
   class Async[E](
                    _insert : (e: E) =>  Int,
                    _insertAll : (es: Iterable[E]) =>  Int,
                    _selectAll : () =>  List[E],
+                   _selectAllPaged : (page : Page) =>  Page.Response[E],
                    _deleteAll : () =>  Int
-                 )(using RawDaoOpsInline.Sync[E], ExecutionContext) extends Impl[E](_insert,_insertAll,_selectAll,_deleteAll):
+                 )(using RawDaoOpsInline.Sync[E], ExecutionContext) extends Impl[E](_insert,_insertAll,_selectAll,_selectAllPaged,_deleteAll):
     override type W[A] = Future[A]
     override inline def wFactory[A](a :A) = Future(a)
   trait Impl[E](
     val _insert : (e: E) =>  Int,
     val _insertAll : (es: Iterable[E]) =>  Int,
     val _selectAll : () =>  List[E],
+    val _selectAllPaged : (page : Page) =>  Page.Response[E],
     val _deleteAll : () =>  Int
 
                  ) extends RawDaoOps[E]:
@@ -56,6 +61,7 @@ object RawDaoOps:
     //inline def select(inline fSel: E => Any, value: Any): W[Option[E]] = wFactory(sub.select(fSel,value))
     def selectAll(): W[List[E]] = wFactory(_selectAll())
     def deleteAll(): W[Int] = wFactory(_deleteAll())
+    def selectAll(page : Page): W[Page.Response[E]]= wFactory(_selectAllPaged(page))
 
     // inline def delete(e: E, inline f: E => Any): W[Int]  = wFactory(sub.delete(e,f))
    /* inline def join[B, IDB](

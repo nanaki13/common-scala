@@ -1,5 +1,7 @@
 package bon.jo.datamodeler.model.sql
 
+import bon.jo.datamodeler.model.Page
+
 import scala.concurrent.{ExecutionContext, Future}
 
 trait RawDaoOpsInline[E]:
@@ -11,6 +13,7 @@ trait RawDaoOpsInline[E]:
   inline def insertAll(es: Iterable[E]): W[Int]
   inline def select(inline fSel: E => Any, value: Any): W[Option[E]]
   inline def selectAll(): W[List[E]]
+  inline def selectAll(page : Page): W[Page.Response[E]]
   inline def deleteAll(): W[Int]
 
   inline def delete(e: E, inline f: E => Any): W[Int]

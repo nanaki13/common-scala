@@ -4,17 +4,21 @@ import bon.jo.datamodeler.model.Page.Response
 import bon.jo.datamodeler.model.Page.*
 import bon.jo.datamodeler.model.Page.given
 import bon.jo.datamodeler.model.Page
+import bon.jo.datamodeler.model.ForFun.*
 import org.scalatest.*
 import org.scalatest.flatspec.*
 import org.scalatest.matchers.*
 class TestPage extends AnyFlatSpec with should.Matchers {
   "A page" can " be create" in {
-      val rep1 : PageList[String]= Response(1,100,5,List("a"))
-      val rep2 : PageList[String] = Response(1,100,5,List("b"))
-      val rep3  : PageList[String]  = rep1 ++ rep2
+
+      val rep1 : Page.Response[String]= Page.Response(List("a"),10,10)
+      val rep2 : Page.Response[String] = Page.Response(List("b"),10,10)
+      val rep3  : Page.Response[String]  = rep1 combine rep2
       val p4 = rep3.flatMap{
-        str => Response(str.size,0,0,str.toList)
+        str => Response(str.toList,0,0)
       }
-      p4 should be (Response(2,100,5,List('a','b')))
+      p4 should be (Response(List('a','b'),11,10))
+
+      val test = for (pe <- p4) yield pe
     }
 }
