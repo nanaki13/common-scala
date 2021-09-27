@@ -14,6 +14,8 @@ import scala.util.{Failure, Success}
 import Server.Message
 import Server.Message.*
 
+import java.nio.file.{Files, Paths}
+
 object Server :
   enum Message :
     private [Server] case StartFailed(cause: Throwable)
@@ -25,6 +27,7 @@ object Server :
    port: Int):Server =
     given Pool[java.sql.Connection] = ConnectionPool(10)("jdbc:sqlite:sample2.db","org.sqlite.JDBC")
     ServerImpl( host,port)
+  def dropTestDb() = Files.deleteIfExists(Paths.get("sample2.db"))
 trait Server(using Pool[java.sql.Connection]) {
 
   def pool : Pool[java.sql.Connection] = summon

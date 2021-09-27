@@ -8,7 +8,7 @@ trait ForFun[C[_]] {
   def apply[A](a : A) : C[A]
   def combine[A](a : C[A],b : C[A]) : C[A]
   def map[A,B](f : A => B ,o : C[A]) : C[B]
-  def flatten[A](o : C[C[A]]): C[A]
+  def flatten[A,B](o : C[A])(using asIte : A => C[B]): C[B]
   def flatMap[A, B](f : A => C[B],o : C[A]) : C[B] =
     flatten(map[A,C[B]](f,o))
 }
@@ -19,8 +19,9 @@ object ForFun:
     def combine(b : C[A]) : C[A] = forfun.combine(ca,b)
     def map[B](f : A => B ) : C[B] = forfun.map(f,ca)
     def flatMap[B](f : A => C[B]): C[B] = forfun.flatMap(f,ca)
-  extension[A,C[_]](ca : C[C[A]])(using ForFun[C])
-    def flatten(): C[A] = forfun.flatten(ca)
+    def flatten[B](using asIte : A => C[B]): C[B] = forfun.flatten(ca)
+
+
 
   trait Fact[C[_]]:
     def apply[A](a : C[A] ) : Iterable[A]
@@ -34,7 +35,10 @@ object ForFun:
     def apply[B](a : B): C[B] =  fromIterable(List(a))
     def combine[A](a : C[A],b : C[A]) : C[A] = fromIterable(toIterable(a) ++ toIterable(b))
     def map[A,B](f : A => B ,o : C[A]): C[B] = fromIterable(toIterable(o).map(f))
-    def flatten[A](o : C[C[A]]): C[A]= fromIterable(toIterable(o).flatMap(toIterable))
+    def flatten[A,B](o : C[A])(using asIte : A => C[B]): C[B] = fromIterable(toIterable(o).map{
+      e =>
+        toIterable(asIte(e))
+    }.flatten)
 
 
 

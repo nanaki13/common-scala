@@ -12,3 +12,11 @@ trait JsonSupport[T]{
 
   given format: RootJsonFormat[T]
 }
+
+object JsonSupport:
+  import DefaultJsonProtocol._
+  given [T](using RootJsonFormat[T]) :  RootJsonFormat[Page.Response[T]] =
+    jsonFormat[List[T],Int,Int,Page.Response[T]]((data,pageNumber,pageSize)=> Page.Response(data,pageNumber,pageSize),
+      "pageNumber",
+      "pageSize",
+      "data")

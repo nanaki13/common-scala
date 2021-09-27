@@ -10,6 +10,7 @@ import bon.jo.datamodeler.server.{Command, Repository, Response}
 import Command.*
 import Response.*
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
+import spray.json.RootJsonFormat
 
 import scala.concurrent.duration.*
 import scala.concurrent.Future
@@ -21,11 +22,15 @@ class UserRoutes[T](baseRoute : String)(using s : ActorSystem[_],support : JsonS
   //val support : JsonSupport[T] = summon[JsonSupport[T]]
   //import spray.json.DefaultJsonProtocol._
   import support.given
+  import JsonSupport.given
+
+
 
   // asking someone requires a timeout and a scheduler, if the timeout hits without response
   // the ask is failed with a TimeoutException
   implicit val timeout: Timeout = 3.seconds
 
+  lazy val searchParam = parameters("page[number]".as[Int].optional,"page[size]".as[Int].optional)
 
   lazy val theJobRoutes: Route =
     pathPrefix(baseRoute) {
@@ -49,6 +54,12 @@ class UserRoutes[T](baseRoute : String)(using s : ActorSystem[_],support : JsonS
             }
           )
         },
+        (pathEndOrSingleSlash & get & searchParam) {
+          (pageNumberOption, pageSizeOption) =>
+            val operationPerformed: Future[Page.Response[T]] = buildJobRepository.ask(Command.GetAll(Page(pageNumberOption,pageSizeOption),_))
+            complete(operationPerformed)
+        },
+
         (get & path(IntNumber)) { id =>
           val maybeJob: Future[Option[T]] =
             buildJobRepository.ask(GetById(id, _))

@@ -115,10 +115,10 @@ class Test extends AnyFlatSpec with should.Matchers:
     inline def now =  System.currentTimeMillis
 
     val t  = now
-    try
-      t2
-      println(now - t)
-      println(daoUser.selectAll().size)
+
+    t2
+    println(now - t)
+    println(daoUser.selectAll().size)
 
   }
 
@@ -126,11 +126,11 @@ class Test extends AnyFlatSpec with should.Matchers:
     val all = daoUser.selectAll()
     var allUserPage0 : Page.Response[User]= daoUser.selectAll(Page.Request(0,10))
     println(allUserPage0)
-    import Page.given
+    //given (Page.Response[User] => IterableOnce[User]) =  Page.asIterable
     val pageNext : Seq[Page.Response[User]]  =
       for(current <- 1 until  allUserPage0.pageCount  )
       yield daoUser.selectAll(Page.Request(current,10))
-    val fromPage : Seq[User] = (allUserPage0 +: pageNext).flatten[User]()
+    val fromPage : Seq[User] = (allUserPage0 +: pageNext).flatten
     fromPage.toSet should be (all.toSet)
 
 
