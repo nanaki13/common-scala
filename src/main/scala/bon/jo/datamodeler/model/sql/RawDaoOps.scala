@@ -16,6 +16,7 @@ trait RawDaoOps[E]:
     def selectAll(): W[List[E]]
 
     def selectAll(page : Page): W[Page.Response[E]]
+   // def selectAll(page : Page,filtre: Filtre): W[Page.Response[E]]
     def deleteAll(): W[Int]
 
   // inline def delete(e: E, inline f: E => Any): W[Int]
