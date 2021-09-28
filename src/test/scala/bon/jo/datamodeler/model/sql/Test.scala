@@ -144,7 +144,7 @@ class Test extends AnyFlatSpec with should.Matchers with  BeforeAndAfterAll:
   "A dao" can " select filtred paged" in {
     val p1 = daoUser.selectAll(Page.Request(0,10), "name".field like "%bob%".exp )
     p1.pageCount should be (1)
-    p1._data(0).name.toLowerCase should be ("bob")
+    p1._data(0).name.toLowerCase.contains("bob") should be (true)
   }
 
 
