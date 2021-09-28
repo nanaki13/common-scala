@@ -4,16 +4,18 @@ import bon.jo.datamodeler.model.Model.{Event, Groupe, Room, User, UserRoom}
 import bon.jo.datamodeler.model.Page
 import bon.jo.datamodeler.model.macros.GenMacro
 import bon.jo.datamodeler.model.sql.DaoInline
+import bon.jo.datamodeler.util.ConnectionPool.pool
 import bon.jo.datamodeler.util.Utils.writer
 import bon.jo.datamodeler.util.{ConnectionPool, Pool}
 import org.scalatest.*
 import org.scalatest.flatspec.*
 import org.scalatest.matchers.*
-
+import bon.jo.datamodeler.util.ConnectionPool.*
 import java.sql.Connection
 import java.time.LocalDateTime
+import bon.jo.datamodeler.model.sql.Filtre.*
 
-class Test extends AnyFlatSpec with should.Matchers:
+class Test extends AnyFlatSpec with should.Matchers with  BeforeAndAfterAll:
   given StringBuilder = StringBuilder()
   given Pool[java.sql.Connection] = ConnectionPool(10)("jdbc:sqlite:sample3.db","org.sqlite.JDBC")
 
@@ -24,6 +26,9 @@ class Test extends AnyFlatSpec with should.Matchers:
 
   val linkDao : RawDaoInline.Sync[UserRoom] = RawDaoInline[UserRoom]()
 
+  override def afterAll() = {
+    pool.closeAll()
+  }
   import bon.jo.datamodeler.util.ConnectionPool.*
   "A dao" can " save, update, delete ..." in {
     given  Connection =  pool.get
@@ -100,7 +105,7 @@ class Test extends AnyFlatSpec with should.Matchers:
 
 
       user = daoUser.save(user)
-      user = user.copy(name = "Bill")
+      user = user.copy(name = "bob")
 
       daoUser.update(user) should be (1)
       (daoUser.select(_.id,user.id)).get should be (user)
@@ -134,7 +139,12 @@ class Test extends AnyFlatSpec with should.Matchers:
     fromPage.toSet should be (all.toSet)
 
 
-    pool.closeAll()
+  }
+
+  "A dao" can " select filtred paged" in {
+    val p1 = daoUser.selectAll(Page.Request(0,10), "name".field like "%bob%".exp )
+    p1.pageCount should be (1)
+    p1._data(0).name.toLowerCase should be ("bob")
   }
 
 

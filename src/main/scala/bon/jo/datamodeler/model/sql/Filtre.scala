@@ -1,5 +1,5 @@
 package bon.jo.datamodeler.model.sql
-import Filtre._
+import Filtre.*
 object Filtre:
   opaque type BooleanFiltre = Filtre
 
