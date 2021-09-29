@@ -35,10 +35,11 @@ object ForFun:
     def apply[B](a : B): C[B] =  fromIterable(List(a))
     def combine[A](a : C[A],b : C[A]) : C[A] = fromIterable(toIterable(a) ++ toIterable(b))
     def map[A,B](f : A => B ,o : C[A]): C[B] = fromIterable(toIterable(o).map(f))
-    def flatten[A,B](o : C[A])(using asIte : A => C[B]): C[B] = fromIterable(toIterable(o).map{
+    def flatten[A,B](o : C[A])(using asIte : A => C[B]): C[B] = fromIterable(toIterable(o)
+      .flatMap{
       e =>
         toIterable(asIte(e))
-    }.flatten)
+    })
 
 
 

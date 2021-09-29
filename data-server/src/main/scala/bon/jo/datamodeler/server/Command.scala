@@ -11,4 +11,4 @@ enum Command[T]:
   case Clear(replyTo: ActorRef[Response])
   case DeleteById(id: Int, replyTo: ActorRef[Response])
   case UpdateById(id: Int,user: T, replyTo:ActorRef[Response])
-  case GetAll(page: Page.Request,replyTo : ActorRef[Page.Response[T]] )
+  case GetAll(page: Page.Request,filtre: Filtre,replyTo : ActorRef[Page.Response[T]] )

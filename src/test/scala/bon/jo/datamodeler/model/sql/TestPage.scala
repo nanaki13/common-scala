@@ -15,9 +15,9 @@ class TestPage extends AnyFlatSpec with should.Matchers {
       val rep2 : Page.Response[String] = Page.Response(List("b"),10,10)
       val rep3  : Page.Response[String]  = rep1 combine rep2
       val p4 = rep3.flatMap{
-        str => Response(str.toList,0,0)
+        str => Response(str.toList,rep3.pageNumber,rep3.pageCount)
       }
-      p4 should be (Response(List('a','b'),11,10))
+      p4 should be (Response(List('a','b'),0,0))
 
       val test = for (pe <- p4) yield pe
     }
