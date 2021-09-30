@@ -7,6 +7,8 @@ import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.server.Route
 import bon.jo.datamodeler.model.Model.User
 import bon.jo.datamodeler.server.{Command, Repository, Response}
+import bon.jo.datamodeler.model.sql.Filtre
+import Filtre.*
 import Command.*
 import Response.*
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
@@ -29,8 +31,15 @@ class UserRoutes[T](baseRoute : String)(using s : ActorSystem[_],support : JsonS
   // asking someone requires a timeout and a scheduler, if the timeout hits without response
   // the ask is failed with a TimeoutException
   implicit val timeout: Timeout = 3.seconds
-
-  lazy val searchParam = parameters("page[number]".as[Int].optional,"page[size]".as[Int].optional)
+// ?field=name&op=eq&value=
+  lazy val searchParam = parameters(
+    "page[number]".as[Int].optional,
+    "page[size]".as[Int].optional,
+    "field".as[String].optional,
+    "op".as[String].optional,
+    "value".as[String].optional
+    
+  )
 
   lazy val theJobRoutes: Route =
     pathPrefix(baseRoute) {
@@ -55,7 +64,14 @@ class UserRoutes[T](baseRoute : String)(using s : ActorSystem[_],support : JsonS
           )
         },
         (pathEndOrSingleSlash & get & searchParam) {
-          (pageNumberOption, pageSizeOption) =>
+          (pageNumberOption, pageSizeOption,fieldName,op,value) =>
+              for{
+                f <- fieldName
+                o <- op
+                v <- value
+            } yield {
+              val filtre = f.field(Op(o))(v.constanString)  
+            }
             val operationPerformed: Future[Page.Response[T]] = buildJobRepository.ask(Command.GetAll(Page(pageNumberOption,pageSizeOption),_))
             complete(operationPerformed)
         },
