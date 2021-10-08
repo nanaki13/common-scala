@@ -1,5 +1,6 @@
 package bon.jo.datamodeler.model.sql
 import Filtre.*
+import bon.jo.datamodeler.model.macros.{GenMacro, SqlMacro}
 object Filtre:
   opaque type BooleanFiltre = Filtre
   opaque type Exp = String
@@ -22,7 +23,7 @@ object Filtre:
       http.zip(alls).toMap
   }
   object Op : 
-    def apply(s : String)(using conf : Map[String,Op]) : Op = conf.getOrElse(throw new RuntimeException(s"not handle operator : $s")) 
+    def apply(s : String)(using conf : Map[String,Op]) : Op = conf.getOrElse(s,throw new RuntimeException(s"not handle operator : $s"))
       
   val empty = Filtre.Empty
   def alias(s : String) = PrefixedFields(s,_)
@@ -51,7 +52,7 @@ object Filtre:
     def <(b : Exp) : BooleanFiltre = composeExp(a,Filtre.<,b)
     def like(b : Exp) : BooleanFiltre = composeExp(a,Filtre.LIKE,b)
     def constantExp : Constant = Constant(a)
-    def apply(op: Op) : Op => BooleanFiltre = composeB(a,op,_)
+
 
   extension( a :BooleanFiltre)
     def &&(b : BooleanExp) : BooleanFiltre = compose(a,Filtre.AND,b.constantBoolean)
@@ -59,13 +60,45 @@ object Filtre:
     def ||(b : BooleanExp) : BooleanFiltre = compose(a,Filtre.OR,b.constantBoolean)
     def ||(b : Filtre) : BooleanFiltre = composeB(a,Filtre.OR,b)
     def value : String = a.value
+    def typed[T](using d : Def[T]): Option[TypedFiltre[T]]= a.typed
 
+
+case class ClassInfo[T](val fieldsName : List[String])
+object Def:
+  inline def apply[T](): Def[T] =
+    
+    given ClassInfo[T] = ClassInfo(SqlMacro.columnsNameList[T])
+    new {}
+
+
+trait Def[T](using ClassInfo[T]):
+  inline def classInfo :  ClassInfo[T] = summon
+  def validate(f : Filtre) : Boolean =
+    f match {
+      case Field(f) => classInfo.fieldsName.contains(f)
+      case PrefixedFields(pref,f) => classInfo.fieldsName.contains(f)
+      case Compose(a,_,b) => validate(a) && validate(b)
+      case _ => true
+    }
+
+  def validate(f : Filtre,prefix: String) : Boolean =
+    f match {
+      case PrefixedFields(pref,f) if pref == prefix => classInfo.fieldsName.contains(f)
+      case Compose(a,_,b) => validate(a) && validate(b)
+      case _ => true
+    }
+case class TypedFiltre[T](val filtre: Filtre)
 enum Filtre:
+  def typed[T](using d : Def[T]): Option[TypedFiltre[T]] =
+    if(d.validate(this)) then Some(TypedFiltre[T](this)) else None
+
   def value : String =
     this match {
       case Compose(left,op,right) =>  s"(${left.value} $op ${right.value})"
       case PrefixedFields(pref,field) =>  s"$pref.$field"
+      case Field(field) =>  s"$field"
       case Constant(value) => value.toString
+      case Empty => ""
     }
   //def exp : BooleanExp = value.exp
   case Compose(   left : Filtre,
@@ -73,6 +106,7 @@ enum Filtre:
                                  right : Filtre)
   case PrefixedFields(pref : String,field : String )
   case Constant(valueAny : Any)
+  case Field(valueAny : String)
   case Empty
 
   def ===(b : Filtre) : BooleanFiltre = composeB(this,Filtre.===,b)
@@ -80,7 +114,7 @@ enum Filtre:
   def >(b : Filtre) : BooleanFiltre = composeB(this,Filtre.>,b)
   def <(b : Filtre) : BooleanFiltre = composeB(this,Filtre.<,b)
   def like(b : Filtre) : BooleanFiltre = composeB(this,Filtre.LIKE,b)
-
+  inline def apply(op: Op) : Filtre => BooleanFiltre = composeB(this,op,_)
 
 
 

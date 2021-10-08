@@ -5,7 +5,7 @@ import bon.jo.datamodeler.model.macros.{GenMacro, SqlMacro}
 import bon.jo.datamodeler.util.ConnectionPool.{onPreStmt, onStmt}
 import bon.jo.datamodeler.util.Utils.{/, writer}
 import bon.jo.datamodeler.util.{Pool, Utils}
-
+import bon.jo.datamodeler.model.sql.Filtre.*
 import java.sql.{PreparedStatement, ResultSet}
 
 
@@ -22,6 +22,8 @@ object RawDaoInline:
   }
 trait RawDaoInline[E,CF <:CompiledFunction[E]](using Pool[java.sql.Connection], Sql[E]) extends RawDaoOpsInline[E]:
   val reqConstant: ReqConstant[E]
+  given ClassInfo[E] = ClassInfo(reqConstant.columns)
+  given Def[E] with {}
   val compiledFunction: CF
   extension (r: ResultSet)
     def iterator[A](read: ResultSet => A): Iterator[A] =
@@ -110,13 +112,15 @@ trait RawDaoInline[E,CF <:CompiledFunction[E]](using Pool[java.sql.Connection], 
     }
 
   inline def selectAll(page : Page,filtre: Filtre.BooleanFiltre): W[Page.Response[E]] =
+    val filtreTyped =  filtre.typed[E]
+    val queryCountFilter = Utils.stringBuilder {
+      /(reqConstant.selectCount)
+      /(" WHERE ")
+      /(filtre.value)
+    }
     wFactory {
       onStmt {
-        val queryCountFilter = Utils.stringBuilder {
-          /(reqConstant.selectCount)
-          /(" WHERE ")
-          /(filtre.value)
-        }
+
         val res = SimpleSql.thisStmt.executeQuery(queryCountFilter)
         res.next()
         val count =res.getLong(1)

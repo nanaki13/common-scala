@@ -65,14 +65,14 @@ class UserRoutes[T](baseRoute : String)(using s : ActorSystem[_],support : JsonS
         },
         (pathEndOrSingleSlash & get & searchParam) {
           (pageNumberOption, pageSizeOption,fieldName,op,value) =>
-              for{
+            val filtre = for{
                 f <- fieldName
                 o <- op
                 v <- value
             } yield {
-              val filtre = f.field(Op(o))(v.constanString)  
+              f.field(Op(o))(v.constanString)  
             }
-            val operationPerformed: Future[Page.Response[T]] = buildJobRepository.ask(Command.GetAll(Page(pageNumberOption,pageSizeOption),_))
+            val operationPerformed: Future[Page.Response[T]] = buildJobRepository.ask(Command.GetAll(Page(pageNumberOption,pageSizeOption),filtre.getOrElse(Filtre.empty),_))
             complete(operationPerformed)
         },
 

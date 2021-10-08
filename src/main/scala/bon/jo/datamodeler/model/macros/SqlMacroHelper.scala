@@ -59,7 +59,7 @@ class SqlMacroHelper[Q <: Quotes, T : Type]()(using val qq : Q) :
     def uniqueIdValueCode[E,ID](e : Expr[E]):Expr[Any] =
       val idFieldName = uniqueId.name
       fields.find(_.name == idFieldName).map(f => Select(e.asTerm, f).asExpr).get
-
+    
     def idsValueCode[E,ID](e : Expr[E]):Expr[List[Any]] =
       val idFieldName = idFieldsCode.map(_.name)
       Expr.ofList(fields.filter(field => idFieldName.contains(field.name)).map(f => Select(e.asTerm, f).asExpr))
