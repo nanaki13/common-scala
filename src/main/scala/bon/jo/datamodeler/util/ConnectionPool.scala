@@ -20,6 +20,13 @@ object ConnectionPool:
   type P[A] = Pool[Connection] ?=> A
   inline def pool:P[Pool[Connection]] = summon
 
+  inline def onStmtDo(f : SimpleSql.S[Unit] ) : Pooled[Unit] =
+    given  Connection =  pool.get
+    Try{SimpleSql.stmt[Unit]{
+      f
+      SimpleSql.thisStmt.close
+    }}
+    pool.release
   inline def onStmt[A](f : StringBuilder ?=> SimpleSql.S[A]) : Pooled[A] =
     given  Connection =  pool.get
     given StringBuilder = StringBuilder()

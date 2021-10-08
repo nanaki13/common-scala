@@ -14,7 +14,7 @@ case class ReqConstant[E](
     deleteIdString: String,
     deleteString: String,
     updateString: String,
-  
+    
     columns: List[String],
     alias : String,table : String):
   val updateById = updateString + whereIdString
@@ -24,7 +24,8 @@ case class ReqConstant[E](
   val from = s"FROM $table"
   val tableAlias = s"$table $alias"
   val fromTableAlias = s"FROM $tableAlias"
-
+  val selectCount = s"SELECT COUNT(*) $from "
+  
 
 object ReqConstant:
 

@@ -5,8 +5,10 @@ import scala.quoted.{Expr, Quotes, ToExpr, Type, quotes}
 import java.sql.PreparedStatement
 import java.sql.ResultSet
 import java.time.LocalDate
-import bon.jo.datamodeler.util.Utils.{/, writer, UsingSb}
+import bon.jo.datamodeler.util.Utils.{/, UsingSb, writer}
 import bon.jo.datamodeler.model.macros.SqlMacroHelper
+import bon.jo.datamodeler.model.sql.Filtre
+
 import scala.collection.mutable.ListBuffer
 import java.time.LocalDateTime
 object SqlMacro:
@@ -115,11 +117,11 @@ object SqlMacro:
 
     if (idSize == 1) then
       '{ (a: T, offset: Offset, p: PreparedStatement) =>
-        ${ SqlMacroHelper().fillPreparedStatmentWithId('{ a }, '{ offset }, '{ p }) }
+        ${ SqlMacroHelper().fillPreparedStatmentWithUniqueId('{ a }, '{ offset }, '{ p }) }
       }
     else if (idSize > 1) then
       '{ (a: T, offset: Offset, p: PreparedStatement) =>
-        ${ SqlMacroHelper().fillPreparedStatmentWithUniqueId('{ a }, '{ offset }, '{ p }) }
+        ${ SqlMacroHelper().fillPreparedStatmentWithId('{ a }, '{ offset }, '{ p }) }
       }
     else
       '{

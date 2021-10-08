@@ -1,34 +1,36 @@
 package bon.jo.datamodeler.model.sql
 
 import bon.jo.datamodeler.model.Model.{Event, Groupe, Room, User, UserRoom}
+import bon.jo.datamodeler.model.Page
 import bon.jo.datamodeler.model.macros.GenMacro
 import bon.jo.datamodeler.model.sql.DaoInline
+import bon.jo.datamodeler.util.ConnectionPool.pool
 import bon.jo.datamodeler.util.Utils.writer
 import bon.jo.datamodeler.util.{ConnectionPool, Pool}
 import org.scalatest.*
 import org.scalatest.flatspec.*
 import org.scalatest.matchers.*
-
+import bon.jo.datamodeler.util.ConnectionPool.*
 import java.sql.Connection
 import java.time.LocalDateTime
+import bon.jo.datamodeler.model.sql.Filtre.*
 
-class Test extends AnyFlatSpec with should.Matchers:
+class Test extends AnyFlatSpec with should.Matchers with  BeforeAndAfterAll:
+  given StringBuilder = StringBuilder()
+  given Pool[java.sql.Connection] = ConnectionPool(10)("jdbc:sqlite:sample3.db","org.sqlite.JDBC")
+
+  given daoRoom :  DaoInline.IntDaoSyncInline[Room] = DaoInline.IntDaoSyncInline[Room]((id, e ) => e.copy(id = id) )
+  given daoUser : DaoInline.IntDaoSyncInline[User] = DaoInline.IntDaoSyncInline[User]((id, e ) => e.copy(id = id) )
+  given eventDao : DaoInline.IntDaoSyncInline[Event] = DaoInline.IntDaoSyncInline[Event]((id, e ) => e.copy(id = id) )
+  given groupDao : DaoInline.IntDaoSyncInline[Groupe] = DaoInline.IntDaoSyncInline[Groupe]((id, e ) => e.copy(id = id) )
+
+  val linkDao : RawDaoInline.Sync[UserRoom] = RawDaoInline[UserRoom]()
+
+  override def afterAll() = {
+    pool.closeAll()
+  }
+  import bon.jo.datamodeler.util.ConnectionPool.*
   "A dao" can " save, update, delete ..." in {
-
-
-
-    given StringBuilder = StringBuilder()
-    given Pool[java.sql.Connection] = ConnectionPool(10)("jdbc:sqlite:sample3.db","org.sqlite.JDBC")
-
-    given daoRoom :  DaoInline.IntDaoSyncInline[Room] = DaoInline.IntDaoSyncInline[Room]((id, e ) => e.copy(id = id) )
-    given daoUser : DaoInline.IntDaoSyncInline[User] = DaoInline.IntDaoSyncInline[User]((id, e ) => e.copy(id = id) )
-    given eventDao : DaoInline.IntDaoSyncInline[Event] = DaoInline.IntDaoSyncInline[Event]((id, e ) => e.copy(id = id) )
-    given groupDao : DaoInline.IntDaoSyncInline[Groupe] = DaoInline.IntDaoSyncInline[Groupe]((id, e ) => e.copy(id = id) )
-
-    val linkDao : RawDaoInline.Sync[UserRoom] = RawDaoInline[UserRoom]()
-
-    import bon.jo.datamodeler.util.ConnectionPool.*
-
     given  Connection =  pool.get
 
 
@@ -103,23 +105,46 @@ class Test extends AnyFlatSpec with should.Matchers:
 
 
       user = daoUser.save(user)
-      user = user.copy(name = "Bill")
+      user = user.copy(name = "bob")
 
       daoUser.update(user) should be (1)
       (daoUser.select(_.id,user.id)).get should be (user)
+
+      user.copy(name="ttt")
+      val updated = daoUser.update(user.id,user)
+      updated should be (1)
+      daoUser.selectById(user.id).get should be (user)
 
     end t2
 
     inline def now =  System.currentTimeMillis
 
     val t  = now
-    try
-      t2
-      println(now - t)
-      println(daoUser.selectAll().size)
-    finally
 
-      pool.closeAll()
+    t2
+    println(now - t)
+    println(daoUser.selectAll().size)
+
+  }
+
+  "A dao" can " select paged" in {
+    val all = daoUser.selectAll()
+    var allUserPage0 : Page.Response[User]= daoUser.selectAll(Page.Request(0,10))
+    println(allUserPage0)
+    //given (Page.Response[User] => IterableOnce[User]) =  Page.asIterable
+    val pageNext : Seq[Page.Response[User]]  =
+      for(current <- 1 until  allUserPage0.pageCount  )
+      yield daoUser.selectAll(Page.Request(current,10))
+    val fromPage : Seq[User] = (allUserPage0 +: pageNext).flatten
+    fromPage.toSet should be (all.toSet)
+
+
+  }
+
+  "A dao" can " select filtred paged" in {
+    val p1 = daoUser.selectAll(Page.Request(0,10), "name".field like "%bob%".exp )
+    p1.pageCount should be (1)
+    p1._data(0).name.toLowerCase.contains("bob") should be (true)
   }
 
 

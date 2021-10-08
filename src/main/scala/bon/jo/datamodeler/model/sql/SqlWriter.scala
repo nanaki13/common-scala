@@ -34,9 +34,13 @@ object SqlWriter:
       /(w.value)
       this
 
+  inline def limit(offset : Long,size : Int): UsingSb[Unit] =
+    /(s" LIMIT $size OFFSET $offset")
+    
   inline def from[T]: UsingSb[Unit] =
     /(" FROM ")
     /(SqlMacro.tableName[T].name)
+    
   inline def where[T](inline f: T => Any): UsingSb[Unit] =
     /(" WHERE ")
     /(GenMacro.fieldSelection[T](f)._2)
@@ -62,7 +66,9 @@ object SqlWriter:
     /('(')
     /(SqlMacro.columnsNameInsert[T])
     /(')')
-
+  inline def count[T]: UsingSb[Unit] =
+    /("SELECT COUNT(*) FROM ")
+    /(SqlMacro.tableName[T].name)
   inline def update[T]: UsingSb[Unit] =
     /("UPDATE ")
     /(SqlMacro.tableName[T].name)

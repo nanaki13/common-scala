@@ -25,10 +25,12 @@ trait DaoInline[E,ID](using Pool[java.sql.Connection], Sql[E] ) extends DaoOpsIn
 
   override inline def selectById(id: ID): W[Option[E]] =
     wFactory{
+      println(reqConstant.selectById)
       onPreStmt(reqConstant.selectById){
+        SimpleSql.thisPreStmt.setObject(1,id)
         val resultSet : ResultSet = SimpleSql.doQuery()
         if resultSet.next() then
-          Some(compiledFunction.readResultSet(resultSet,1))
+          Some(compiledFunction.readResultSet(resultSet,0))
         else
           None
       }
@@ -84,7 +86,7 @@ trait DaoInline[E,ID](using Pool[java.sql.Connection], Sql[E] ) extends DaoOpsIn
         val nbCol = GenMacro.countFields[E]
         for (e <- es)
           compiledFunction.fillUpdate(e, SimpleSql.thisPreStmt)
-          compiledFunction.fillPreparedStatmentWithId(e,1,SimpleSql.thisPreStmt)
+          compiledFunction.fillPreparedStatmentWithId(e,GenMacro.countFields[E] + 1,SimpleSql.thisPreStmt)
           SimpleSql.thisPreStmt.addBatch()
         SimpleSql.thisPreStmt.executeBatch.sum
       }
@@ -95,9 +97,8 @@ trait DaoInline[E,ID](using Pool[java.sql.Connection], Sql[E] ) extends DaoOpsIn
     wFactory {
       onPreStmt(reqConstant.updateById){
         val nbCol = GenMacro.countFields[E]
-        fillInsert(e,SimpleSql.thisPreStmt)
-
-        SimpleSql.thisPreStmt.setObject(nbCol+1,id)
+        compiledFunction.fillUpdate(e,SimpleSql.thisPreStmt)
+        SimpleSql.thisPreStmt.setObject(GenMacro.countFields[E] + 1,id)
         SimpleSql.thisPreStmt.executeUpdate
       }
     }
@@ -138,27 +139,18 @@ object DaoInline:
     inline def dao[E](using IntDaoSyncInline[E]) : IntDaoSyncInline[E]= summon
     inline def apply[E]( fromIdF : (id : Int,e : E) => E)(using Pool[java.sql.Connection]  ) :IntDaoSyncInline[E] =
       given Sql[E] = Sql()
-      new {
+      new IntDaoSyncInline(fromIdF){
         val reqConstant: ReqConstant[E] = ReqConstant[E]()
         val compiledFunction: IdCompiledFunction[E] = IdCompiledFunction()
-        def fromId(id : Int,e : E) : E = fromIdF(id,e)
+
       }
 
 
-  trait IntDaoSyncInline[E](using Pool[java.sql.Connection], Sql[E] ) extends  DaoOpsInline.Sync[E,Int],DaoInline[E,Int]:
-    def fromId(id : Int,e : E) : E
-    val reqConstant: ReqConstant[E]
+  abstract class IntDaoSyncInline[E](override val fromId : (id : Int,e : E) => E)(using Pool[java.sql.Connection], Sql[E] ) extends  DaoOpsInline.Sync[E,Int](fromId),DaoInline[E,Int]
 
 
-    inline def save(e : E) : E =
-      onPreStmt(reqConstant.insertString) {
-        fillInsert(e, SimpleSql.thisPreStmt)
-        val pre : PreparedStatement = SimpleSql.thisPreStmt
-        SimpleSql.thisPreStmt.executeUpdate
-        fromId(maxId,e)
-      }
-    inline def saveAll(es : Iterable[E]) : Iterable[E] =
-      es.map(save(_))
+
+
 
 
 

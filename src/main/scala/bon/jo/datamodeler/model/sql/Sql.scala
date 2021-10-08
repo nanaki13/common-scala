@@ -12,6 +12,9 @@ object Sql:
 
 
 trait Sql[A]:
+  inline def count : UsingSb[Sql[A]] =
+    SqlWriter.count[A]
+    this
   inline def update : UsingSb[Sql[A]] =
     SqlWriter.update[A]
     this

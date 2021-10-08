@@ -18,6 +18,11 @@ object GenMacro :
     import quotes.reflect.*
     val tpe: TypeRepr = TypeRepr.of[T]
     Expr(tpe.typeSymbol.declaredFields.size)
+  inline def fieldsClass[T]() : FieldsClass = ${fieldsClassCode[T]}
+
+  def fieldsClassCode[T: Type](using Quotes): Expr[FieldsClass] =
+    MacroHelper().fieldsClass
+
 
   /*inline def testConstructor[T] :T= ${ testConstructorCode[T] }
 
